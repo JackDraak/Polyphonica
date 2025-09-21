@@ -6,10 +6,18 @@ A comprehensive command-line tool for testing, demonstrating, and validating the
 
 The `polyphonica-test` tool provides an interactive way to:
 - **Test library features** with real audio output
+- **Play audio immediately** through your system speakers with volume control
 - **Demonstrate polyphonic capabilities** up to 16 concurrent voices
 - **Export audio files** for verification and sharing
 - **Report issues** to library developers with structured feedback
 - **Run comprehensive test suites** for quality assurance
+
+## 🎵 Audio Playback Features
+
+- **Real-time playback**: All commands support `--play` flag for immediate audio output
+- **Volume control**: Adjustable volume from 0.0 (silent) to 1.0 (maximum)
+- **Automatic device detection**: Uses your system's default audio output
+- **Safe fallback**: Graceful degradation if audio hardware is unavailable
 
 ## Installation
 
@@ -26,17 +34,23 @@ cargo build --bin polyphonica-test
 Generate individual waveforms and export as WAV files:
 
 ```bash
-# Generate a 440Hz sine wave for 2 seconds
+# Generate and play a 440Hz sine wave immediately
+cargo run --bin polyphonica-test generate sine -f 440 -d 2.0 --play
+
+# Generate with custom volume (0.0-1.0)
+cargo run --bin polyphonica-test generate sine -f 440 -d 2.0 --play --volume 0.3
+
+# Generate and save to file without playback
 cargo run --bin polyphonica-test generate sine -f 440 -d 2.0 -o sine_440.wav
 
-# Generate a sawtooth wave at 220Hz
-cargo run --bin polyphonica-test generate sawtooth -f 220 -d 1.5
+# Generate, save, AND play
+cargo run --bin polyphonica-test generate sawtooth -f 220 -d 1.5 -o sawtooth.wav --play --volume 0.5
 
-# Generate all waveform types
-cargo run --bin polyphonica-test generate sine -f 440
-cargo run --bin polyphonica-test generate square -f 440
-cargo run --bin polyphonica-test generate sawtooth -f 440
-cargo run --bin polyphonica-test generate triangle -f 440
+# Quick tests of all waveform types with playback
+cargo run --bin polyphonica-test generate sine -f 440 --play -v 0.4
+cargo run --bin polyphonica-test generate square -f 440 --play -v 0.4
+cargo run --bin polyphonica-test generate sawtooth -f 440 --play -v 0.4
+cargo run --bin polyphonica-test generate triangle -f 440 --play -v 0.4
 ```
 
 ### ADSR Envelope Testing
@@ -44,20 +58,20 @@ cargo run --bin polyphonica-test generate triangle -f 440
 Test amplitude envelope shaping with customizable parameters:
 
 ```bash
-# Piano-like attack/decay/sustain/release
+# Piano-like attack/decay/sustain/release with immediate playback
 cargo run --bin polyphonica-test envelope sine \
   --attack 0.01 --decay 0.3 --sustain 0.3 --release 1.0 \
-  -f 261.63 -d 3.0 -o piano_c.wav
+  -f 261.63 -d 3.0 --play --volume 0.6
 
 # Organ-like sustained tone
 cargo run --bin polyphonica-test envelope square \
   --attack 0.1 --decay 0.0 --sustain 0.8 --release 0.1 \
-  -f 440 -d 2.0 -o organ_a.wav
+  -f 440 -d 2.0 --play --volume 0.4
 
-# Plucked string simulation
+# Plucked string simulation with file output
 cargo run --bin polyphonica-test envelope triangle \
   --attack 0.01 --decay 0.5 --sustain 0.0 --release 0.0 \
-  -f 329.63 -d 1.0 -o pluck_e.wav
+  -f 329.63 -d 1.0 -o pluck_e.wav --play --volume 0.7
 ```
 
 **ADSR Parameters:**
@@ -71,22 +85,24 @@ cargo run --bin polyphonica-test envelope triangle \
 Generate multi-voice compositions demonstrating timeline mixing:
 
 ```bash
-# 4-voice C Major chord
+# 4-voice C Major chord with immediate playback
 cargo run --bin polyphonica-test polyphonic \
-  --voices 4 --composition chord -d 3.0 -o chord.wav
+  --voices 4 --composition chord -d 3.0 --play --volume 0.5
 
 # 8-voice ascending arpeggio
 cargo run --bin polyphonica-test polyphonic \
-  --voices 8 --composition arpeggio -d 4.0 -o arpeggio.wav
+  --voices 8 --composition arpeggio -d 4.0 --play --volume 0.4
 
 # 7-note C Major scale
 cargo run --bin polyphonica-test polyphonic \
-  --voices 7 --composition scale -d 5.0 -o scale.wav
+  --voices 7 --composition scale -d 5.0 --play --volume 0.6
 
 # Experimental random composition with maximum 16 voices
 cargo run --bin polyphonica-test polyphonic \
-  --voices 16 --composition random -d 6.0 -o experimental.wav
+  --voices 16 --composition random -d 6.0 -o experimental.wav --play --volume 0.3
 ```
+
+**💡 Pro Tip**: Start with lower volumes (0.3-0.5) for polyphonic compositions as multiple voices can be quite loud!
 
 **Composition Types:**
 - `chord`: Simultaneous harmonic notes (C Major with extensions)
@@ -99,11 +115,14 @@ cargo run --bin polyphonica-test polyphonic \
 Run the full test suite to validate library functionality:
 
 ```bash
-# Generate complete test battery
+# Generate complete test battery with audio demo at the end
+cargo run --bin polyphonica-test test-suite -o test_results/ --play --volume 0.4
+
+# Silent test suite (files only)
 cargo run --bin polyphonica-test test-suite -o test_results/
 
-# Use different sample rate
-cargo run --bin polyphonica-test test-suite -s 48000 -o high_quality_tests/
+# High quality tests with playback
+cargo run --bin polyphonica-test test-suite -s 48000 -o high_quality_tests/ --play --volume 0.3
 ```
 
 **Generated Test Files:**

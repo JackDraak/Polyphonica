@@ -1,9 +1,11 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use hound::{WavSpec, WavWriter};
 use polyphonica::*;
+use rodio::{OutputStream, Sink, Source};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use std::time::Duration;
 
 #[derive(Parser)]
 #[command(name = "polyphonica-test")]
@@ -33,6 +35,12 @@ enum Commands {
         /// Output file path
         #[arg(short, long, default_value = "output.wav")]
         output: PathBuf,
+        /// Play audio immediately through speakers
+        #[arg(short, long)]
+        play: bool,
+        /// Volume level (0.0-1.0)
+        #[arg(short, long, default_value = "0.5")]
+        volume: f32,
     },
     /// Test ADSR envelope on a waveform
     Envelope {
@@ -63,11 +71,17 @@ enum Commands {
         /// Output file path
         #[arg(short, long, default_value = "envelope_test.wav")]
         output: PathBuf,
+        /// Play audio immediately through speakers
+        #[arg(short, long)]
+        play: bool,
+        /// Volume level (0.0-1.0)
+        #[arg(short, long, default_value = "0.5")]
+        volume: f32,
     },
     /// Generate polyphonic composition with multiple voices
     Polyphonic {
         /// Number of voices (1-16)
-        #[arg(short, long, default_value = "4")]
+        #[arg(short = 'n', long, default_value = "4")]
         voices: u8,
         /// Total duration in seconds
         #[arg(short, long, default_value = "3.0")]
@@ -81,6 +95,12 @@ enum Commands {
         /// Output file path
         #[arg(short, long, default_value = "polyphonic_test.wav")]
         output: PathBuf,
+        /// Play audio immediately through speakers
+        #[arg(short, long)]
+        play: bool,
+        /// Volume level (0.0-1.0)
+        #[arg(short, long, default_value = "0.5")]
+        volume: f32,
     },
     /// Run comprehensive test suite and generate report
     TestSuite {
@@ -90,6 +110,12 @@ enum Commands {
         /// Sample rate for all tests
         #[arg(short, long, default_value = "44100")]
         sample_rate: u32,
+        /// Play generated test files immediately
+        #[arg(short, long)]
+        play: bool,
+        /// Volume level for playback (0.0-1.0)
+        #[arg(short, long, default_value = "0.3")]
+        volume: f32,
     },
     /// Report an issue with the library
     ReportIssue {
@@ -142,6 +168,96 @@ impl From<WaveformArg> for Waveform {
             WaveformArg::Triangle => Waveform::Triangle,
         }
     }
+}
+
+// Simple audio source that wraps our samples for rodio
+struct AudioSource {
+    samples: Vec<f32>,
+    sample_rate: u32,
+    position: usize,
+}
+
+impl AudioSource {
+    fn new(samples: Vec<f32>, sample_rate: u32) -> Self {
+        Self {
+            samples,
+            sample_rate,
+            position: 0,
+        }
+    }
+}
+
+impl Iterator for AudioSource {
+    type Item = f32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.position < self.samples.len() {
+            let sample = self.samples[self.position];
+            self.position += 1;
+            Some(sample)
+        } else {
+            None
+        }
+    }
+}
+
+impl Source for AudioSource {
+    fn current_frame_len(&self) -> Option<usize> {
+        Some(self.samples.len() - self.position)
+    }
+
+    fn channels(&self) -> u16 {
+        1
+    }
+
+    fn sample_rate(&self) -> u32 {
+        self.sample_rate
+    }
+
+    fn total_duration(&self) -> Option<Duration> {
+        Some(Duration::from_secs_f32(
+            self.samples.len() as f32 / self.sample_rate as f32,
+        ))
+    }
+}
+
+fn play_audio(samples: &[f32], sample_rate: u32, volume: f32) -> Result<(), Box<dyn std::error::Error>> {
+    println!("🎵 Playing audio...");
+
+    // Clamp volume to safe range
+    let volume = volume.clamp(0.0, 1.0);
+
+    // Try to create audio output stream
+    let (_stream, stream_handle) = match OutputStream::try_default() {
+        Ok(output) => output,
+        Err(e) => {
+            println!("⚠️  Could not initialize audio output: {}", e);
+            println!("   Make sure your system has audio output available.");
+            return Ok(()); // Don't error, just skip playback
+        }
+    };
+
+    // Create sink for audio playback
+    let sink = match Sink::try_new(&stream_handle) {
+        Ok(sink) => sink,
+        Err(e) => {
+            println!("⚠️  Could not create audio sink: {}", e);
+            return Ok(());
+        }
+    };
+
+    // Set volume
+    sink.set_volume(volume);
+
+    // Create audio source and play
+    let source = AudioSource::new(samples.to_vec(), sample_rate);
+    sink.append(source);
+
+    // Wait for playback to complete
+    sink.sleep_until_end();
+
+    println!("✅ Playback completed");
+    Ok(())
 }
 
 fn write_wav_file(samples: &[f32], sample_rate: u32, output_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
@@ -272,7 +388,7 @@ fn create_polyphonic_composition(
     events
 }
 
-fn run_test_suite(output_dir: &PathBuf, sample_rate: u32) -> Result<(), Box<dyn std::error::Error>> {
+fn run_test_suite(output_dir: &PathBuf, sample_rate: u32, play: bool, volume: f32) -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(output_dir)?;
 
     println!("Running comprehensive test suite...");
@@ -339,6 +455,20 @@ fn run_test_suite(output_dir: &PathBuf, sample_rate: u32) -> Result<(), Box<dyn 
     }
 
     println!("Test suite completed! Files written to: {}", output_dir.display());
+
+    if play {
+        println!("\n🎵 Playing sample compositions...");
+
+        // Play a quick demo chord
+        let demo_events = create_polyphonic_composition(CompositionType::Chord, 4, 2.0);
+        let demo_timeline = render_timeline(&demo_events, 2.0, sample_rate);
+
+        println!("▶️  Playing C Major chord demo...");
+        play_audio(&demo_timeline, sample_rate, volume)?;
+
+        println!("🎼 Demo playback completed!");
+    }
+
     Ok(())
 }
 
@@ -378,13 +508,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Generate { waveform, frequency, duration, sample_rate, output } => {
+        Commands::Generate { waveform, frequency, duration, sample_rate, output, play, volume } => {
             println!("Generating {:?} wave at {:.1}Hz for {:.1}s", waveform, frequency, duration);
             let samples = generate_wave(waveform.into(), frequency, duration, sample_rate);
+
             write_wav_file(&samples, sample_rate, &output)?;
+
+            if play {
+                play_audio(&samples, sample_rate, volume)?;
+            }
         }
 
-        Commands::Envelope { waveform, frequency, duration, attack, decay, sustain, release, sample_rate, output } => {
+        Commands::Envelope { waveform, frequency, duration, attack, decay, sustain, release, sample_rate, output, play, volume } => {
             println!("Testing ADSR envelope: A={:.2}s D={:.2}s S={:.2} R={:.2}s", attack, decay, sustain, release);
 
             let envelope = AdsrEnvelope {
@@ -404,9 +539,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let samples = render_event(&event, sample_rate);
             write_wav_file(&samples, sample_rate, &output)?;
+
+            if play {
+                play_audio(&samples, sample_rate, volume)?;
+            }
         }
 
-        Commands::Polyphonic { voices, duration, sample_rate, composition, output } => {
+        Commands::Polyphonic { voices, duration, sample_rate, composition, output, play, volume } => {
             println!("Generating {:?} composition with {} voices for {:.1}s", composition, voices, duration);
             let events = create_polyphonic_composition(composition, voices, duration);
             let timeline = render_timeline(&events, duration, sample_rate);
@@ -417,10 +556,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("  Voice {}: {:?} at {:.1}Hz starting at {:.2}s",
                     i + 1, event.waveform, event.start_frequency, start_time);
             }
+
+            if play {
+                play_audio(&timeline, sample_rate, volume)?;
+            }
         }
 
-        Commands::TestSuite { output_dir, sample_rate } => {
-            run_test_suite(&output_dir, sample_rate)?;
+        Commands::TestSuite { output_dir, sample_rate, play, volume } => {
+            run_test_suite(&output_dir, sample_rate, play, volume)?;
         }
 
         Commands::ReportIssue { description, expected, actual, parameters } => {
