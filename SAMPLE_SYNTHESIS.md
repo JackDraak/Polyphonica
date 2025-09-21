@@ -27,33 +27,37 @@ Polyphonica now supports custom sample-based synthesis, allowing users to load t
 ### Basic Sample Loading
 
 ```rust
-use polyphonica::{SampleData, Waveform};
+use polyphonica::{SampleData, Waveform, generate_sample};
 
-// Load a sample with known base frequency
-let sample_data = SampleData::from_wav_file("kick_drum.wav", 60.0)?;
+// Load a sample
+let sample_data = SampleData::from_wav_file("kick_drum.wav")?;
 let sample_waveform = Waveform::Sample(sample_data);
 
-// Generate at target frequency
-let samples = generate_wave(sample_waveform, 80.0, 2.0, 44100);
+// Generate with pitch shifting (original: 60Hz, target: 80Hz)
+let samples = generate_sample(sample_waveform, 0.0, 80.0, 2.0, 44100);
 ```
 
 ### Sample with Envelope
 
 ```rust
-use polyphonica::{SampleData, Waveform, SoundEvent};
+use polyphonica::{SampleData, Waveform, SoundEvent, AdsrEnvelope, render_event};
 
-let sample_data = SampleData::from_wav_file("tomtom.wav", 220.0)?;
+let sample_data = SampleData::from_wav_file("tomtom.wav")?;
 let sample_waveform = Waveform::Sample(sample_data);
 
-let event = SoundEvent {
-    waveform: sample_waveform,
-    frequency: 165.0,  // Play at lower pitch
-    start_time: 0.0,
-    duration: 1.5,
+let envelope = AdsrEnvelope {
     attack_secs: 0.01,
     decay_secs: 0.3,
     sustain_level: 0.7,
     release_secs: 0.8,
+};
+
+let event = SoundEvent {
+    waveform: sample_waveform,
+    start_frequency: 165.0,  // Play at lower pitch than original
+    end_frequency: 165.0,
+    duration_secs: 1.5,
+    envelope,
 };
 
 let samples = render_event(&event, 44100);
@@ -62,33 +66,46 @@ let samples = render_event(&event, 44100);
 ### Polyphonic Sample Mixing
 
 ```rust
-use polyphonica::{SampleData, Waveform, SoundEvent};
+use polyphonica::{SampleData, Waveform, SoundEvent, AdsrEnvelope, render_timeline};
 
 // Load multiple samples
-let kick = SampleData::from_wav_file("kick.wav", 60.0)?;
-let snare = SampleData::from_wav_file("snare.wav", 200.0)?;
-let hihat = SampleData::from_wav_file("hihat.wav", 8000.0)?;
+let kick = SampleData::from_wav_file("kick.wav")?;
+let snare = SampleData::from_wav_file("snare.wav")?;
+let hihat = SampleData::from_wav_file("hihat.wav")?;
+
+let drum_envelope = AdsrEnvelope {
+    attack_secs: 0.01,
+    decay_secs: 0.1,
+    sustain_level: 0.0,  // Drums don't sustain
+    release_secs: 0.2,
+};
 
 // Create drum pattern
-let events = vec![
-    SoundEvent {
+let events = &[
+    (0.0, SoundEvent {
         waveform: Waveform::Sample(kick),
-        frequency: 60.0,
-        start_time: 0.0,
-        duration: 0.5,
-        // ... envelope parameters
-    },
-    SoundEvent {
+        start_frequency: 60.0,
+        end_frequency: 60.0,
+        duration_secs: 0.5,
+        envelope: drum_envelope.clone(),
+    }),
+    (0.5, SoundEvent {
         waveform: Waveform::Sample(snare),
-        frequency: 200.0,
-        start_time: 0.5,
-        duration: 0.3,
-        // ... envelope parameters
-    },
-    // ... more events
+        start_frequency: 200.0,
+        end_frequency: 200.0,
+        duration_secs: 0.3,
+        envelope: drum_envelope.clone(),
+    }),
+    (1.0, SoundEvent {
+        waveform: Waveform::Sample(hihat),
+        start_frequency: 8000.0,
+        end_frequency: 8000.0,
+        duration_secs: 0.1,
+        envelope: drum_envelope,
+    }),
 ];
 
-let mixed_audio = render_timeline(&events, 4.0, 44100);
+let mixed_audio = render_timeline(events, 4.0, 44100);
 ```
 
 ## Test Tool Usage
@@ -96,19 +113,14 @@ let mixed_audio = render_timeline(&events, 4.0, 44100);
 ### Sample Playback
 
 ```bash
-# Play a sample at its base frequency
-cargo run --bin polyphonica-test sample \
-  --wav-file "samples/kick.wav" \
-  --base-frequency 60.0 \
-  --target-frequency 60.0 \
+# Play a sample at its original pitch
+polyphonica-test sample load samples/kick.wav \
   --duration 1.0 \
   --play --volume 0.7
 
 # Pitch shift a sample (play at different frequency)
-cargo run --bin polyphonica-test sample \
-  --wav-file "samples/tomtom.wav" \
-  --base-frequency 220.0 \
-  --target-frequency 330.0 \
+polyphonica-test sample load samples/tomtom.wav \
+  --frequency 330.0 \
   --duration 2.0 \
   --output shifted_tomtom.wav \
   --play --volume 0.5
@@ -118,10 +130,8 @@ cargo run --bin polyphonica-test sample \
 
 ```bash
 # Apply envelope shaping to a sample
-cargo run --bin polyphonica-test sample-event \
-  --wav-file "samples/piano_c4.wav" \
-  --base-frequency 261.63 \
-  --target-frequency 440.0 \
+polyphonica-test sample-event samples/piano_c4.wav \
+  --frequency 440.0 \
   --duration 3.0 \
   --attack 0.1 \
   --decay 0.5 \
@@ -137,10 +147,8 @@ cargo run --bin polyphonica-test sample-event \
 # (requires creating multiple sample events and mixing them)
 
 # Kick drum pattern
-cargo run --bin polyphonica-test sample-event \
-  --wav-file "samples/kick.wav" \
-  --base-frequency 60.0 \
-  --target-frequency 60.0 \
+polyphonica-test sample-event samples/kick.wav \
+  --frequency 60.0 \
   --duration 0.5 \
   --attack 0.01 \
   --decay 0.1 \
@@ -149,10 +157,8 @@ cargo run --bin polyphonica-test sample-event \
   --output kick_pattern.wav
 
 # Snare hits
-cargo run --bin polyphonica-test sample-event \
-  --wav-file "samples/snare.wav" \
-  --base-frequency 200.0 \
-  --target-frequency 200.0 \
+polyphonica-test sample-event samples/snare.wav \
+  --frequency 200.0 \
   --duration 0.3 \
   --attack 0.01 \
   --decay 0.05 \
@@ -193,7 +199,15 @@ cargo run --bin polyphonica-test sample-event \
 pub struct SampleData {
     pub samples: Vec<f32>,
     pub sample_rate: u32,
-    pub base_frequency: f32,
+    pub duration_secs: f32,
+    pub metadata: SampleMetadata,
+}
+
+pub struct SampleMetadata {
+    pub name: String,
+    pub file_path: String,
+    pub file_size_bytes: u64,
+    pub format_info: String,
 }
 ```
 
@@ -202,18 +216,23 @@ pub struct SampleData {
 The library uses linear interpolation for real-time pitch shifting:
 
 ```rust
-pub fn get_sample_at_time(&self, time_secs: f32, target_frequency: f32) -> f32 {
-    let pitch_ratio = target_frequency / self.base_frequency;
-    let source_time = time_secs * pitch_ratio;
-    let source_index = source_time * self.sample_rate as f32;
+// In generate_sample function for Waveform::Sample
+let original_frequency = 440.0;  // Assumed base frequency for samples
+let pitch_ratio = target_frequency / original_frequency;
+let adjusted_time = time_secs * pitch_ratio;
+let sample_index = adjusted_time * sample_data.sample_rate as f32;
 
-    // Linear interpolation between adjacent samples
-    let index_floor = source_index.floor() as usize;
-    let index_ceil = index_floor + 1;
-    let fraction = source_index - index_floor as f32;
+// Linear interpolation between adjacent samples
+let index_floor = sample_index.floor() as usize;
+let index_ceil = index_floor + 1;
+let fraction = sample_index - index_floor as f32;
 
-    // Handle bounds and interpolate
-    // ... implementation details
+if index_ceil < sample_data.samples.len() {
+    let sample_a = sample_data.samples[index_floor];
+    let sample_b = sample_data.samples[index_ceil];
+    sample_a + (sample_b - sample_a) * fraction
+} else {
+    0.0  // Beyond sample bounds
 }
 ```
 

@@ -3,11 +3,11 @@ name = "polyphonica"
 version = "0.1.0"
 edition = "2021"
 authors = ["Your Name <your.email@example.com>"]
-description = "A Rust library for real-time audio synthesis with polyphonic mixing capabilities"
+description = "Comprehensive Rust library for real-time audio synthesis with polyphonic mixing, sample-based synthesis, and CLI test tools"
 license = "MIT"
 repository = "https://github.com/JackDraak/Polyphonica"
 documentation = "https://docs.rs/polyphonica"
-keywords = ["audio", "synthesis", "music", "sound", "dsp"]
+keywords = ["audio", "synthesis", "music", "sound", "dsp", "samples", "polyphonic"]
 categories = ["multimedia::audio"]
 
 [lib]

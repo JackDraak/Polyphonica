@@ -35,22 +35,26 @@ Generate individual waveforms and export as WAV files:
 
 ```bash
 # Generate and play a 440Hz sine wave immediately
-cargo run --bin polyphonica-test generate sine -f 440 -d 2.0 --play
+polyphonica-test wave sine --frequency 440 --duration 2.0 --play
 
 # Generate with custom volume (0.0-1.0)
-cargo run --bin polyphonica-test generate sine -f 440 -d 2.0 --play --volume 0.3
+polyphonica-test wave sine --frequency 440 --duration 2.0 --play --volume 0.3
 
 # Generate and save to file without playback
-cargo run --bin polyphonica-test generate sine -f 440 -d 2.0 -o sine_440.wav
+polyphonica-test wave sine --frequency 440 --duration 2.0 --output sine_440.wav
 
 # Generate, save, AND play
-cargo run --bin polyphonica-test generate sawtooth -f 220 -d 1.5 -o sawtooth.wav --play --volume 0.5
+polyphonica-test wave sawtooth --frequency 220 --duration 1.5 --output sawtooth.wav --play --volume 0.5
 
 # Quick tests of all waveform types with playback
-cargo run --bin polyphonica-test generate sine -f 440 --play -v 0.4
-cargo run --bin polyphonica-test generate square -f 440 --play -v 0.4
-cargo run --bin polyphonica-test generate sawtooth -f 440 --play -v 0.4
-cargo run --bin polyphonica-test generate triangle -f 440 --play -v 0.4
+polyphonica-test wave sine --frequency 440 --play --volume 0.4
+polyphonica-test wave square --frequency 440 --play --volume 0.4
+polyphonica-test wave sawtooth --frequency 440 --play --volume 0.4
+polyphonica-test wave triangle --frequency 440 --play --volume 0.4
+
+# Test new waveforms
+polyphonica-test wave pulse --frequency 440 --duty-cycle 0.25 --play --volume 0.4
+polyphonica-test wave noise --frequency 440 --play --volume 0.2
 ```
 
 ### ADSR Envelope Testing
@@ -59,19 +63,19 @@ Test amplitude envelope shaping with customizable parameters:
 
 ```bash
 # Piano-like attack/decay/sustain/release with immediate playback
-cargo run --bin polyphonica-test envelope sine \
+polyphonica-test envelope sine \
   --attack 0.01 --decay 0.3 --sustain 0.3 --release 1.0 \
-  -f 261.63 -d 3.0 --play --volume 0.6
+  --frequency 261.63 --duration 3.0 --play --volume 0.6
 
 # Organ-like sustained tone
-cargo run --bin polyphonica-test envelope square \
+polyphonica-test envelope square \
   --attack 0.1 --decay 0.0 --sustain 0.8 --release 0.1 \
-  -f 440 -d 2.0 --play --volume 0.4
+  --frequency 440 --duration 2.0 --play --volume 0.4
 
 # Plucked string simulation with file output
-cargo run --bin polyphonica-test envelope triangle \
+polyphonica-test envelope triangle \
   --attack 0.01 --decay 0.5 --sustain 0.0 --release 0.0 \
-  -f 329.63 -d 1.0 -o pluck_e.wav --play --volume 0.7
+  --frequency 329.63 --duration 1.0 --output pluck_e.wav --play --volume 0.7
 ```
 
 **ADSR Parameters:**
@@ -86,20 +90,20 @@ Generate multi-voice compositions demonstrating timeline mixing:
 
 ```bash
 # 4-voice C Major chord with immediate playback
-cargo run --bin polyphonica-test polyphonic \
-  --voices 4 --composition chord -d 3.0 --play --volume 0.5
+polyphonica-test poly \
+  --voices 4 --composition chord --duration 3.0 --play --volume 0.5
 
 # 8-voice ascending arpeggio
-cargo run --bin polyphonica-test polyphonic \
-  --voices 8 --composition arpeggio -d 4.0 --play --volume 0.4
+polyphonica-test poly \
+  --voices 8 --composition arpeggio --duration 4.0 --play --volume 0.4
 
 # 7-note C Major scale
-cargo run --bin polyphonica-test polyphonic \
-  --voices 7 --composition scale -d 5.0 --play --volume 0.6
+polyphonica-test poly \
+  --voices 7 --composition scale --duration 5.0 --play --volume 0.6
 
 # Experimental random composition with maximum 16 voices
-cargo run --bin polyphonica-test polyphonic \
-  --voices 16 --composition random -d 6.0 -o experimental.wav --play --volume 0.3
+polyphonica-test poly \
+  --voices 16 --composition random --duration 6.0 --output experimental.wav --play --volume 0.3
 ```
 
 **💡 Pro Tip**: Start with lower volumes (0.3-0.5) for polyphonic compositions as multiple voices can be quite loud!
@@ -110,26 +114,81 @@ cargo run --bin polyphonica-test polyphonic \
 - `scale`: Musical scale progression
 - `random`: Experimental frequencies and timing
 
+### Sample-Based Synthesis
+
+Load and play custom WAV samples with pitch shifting:
+
+```bash
+# Load and play a sample at its original pitch
+polyphonica-test sample load samples/drums/kick.wav --play --volume 0.7
+
+# Pitch shift a sample to different frequencies
+polyphonica-test sample load samples/drums/kick.wav \
+  --frequency 80 --duration 1.0 --play --volume 0.6
+
+# Create a complete sample event with envelope
+polyphonica-test sample-event samples/piano/C4.wav \
+  --frequency 440 --duration 2.0 \
+  --attack 0.1 --decay 0.3 --sustain 0.7 --release 0.8 \
+  --play --volume 0.5
+
+# Export processed sample
+polyphonica-test sample load samples/vocals/voice.wav \
+  --frequency 220 --duration 3.0 --output processed_voice.wav
+```
+
+### Sample Catalog Management
+
+Organize and discover sample collections:
+
+```bash
+# Scan directory for samples and create catalog
+polyphonica-test catalog scan samples/
+
+# Search for specific sample types
+polyphonica-test catalog search "drum"
+polyphonica-test catalog search "kick"
+polyphonica-test catalog search "piano"
+
+# List all available collections
+polyphonica-test catalog list
+
+# Audition samples before use
+polyphonica-test catalog audition samples/drums/snare.wav --play --volume 0.6
+
+# Show detailed sample information
+polyphonica-test catalog info samples/piano/C4.wav
+```
+
+**Sample Catalog Features:**
+- **Automatic Discovery**: Recursively scans directory trees
+- **Metadata Extraction**: Duration, sample rate, and format detection
+- **Search Functionality**: Find samples by name, tags, or collection
+- **JSON Storage**: Persistent catalog with timestamps and metadata
+
 ### Comprehensive Test Suite
 
 Run the full test suite to validate library functionality:
 
 ```bash
 # Generate complete test battery with audio demo at the end
-cargo run --bin polyphonica-test test-suite -o test_results/ --play --volume 0.4
+polyphonica-test test-suite --output test_results/ --play --volume 0.4
 
 # Silent test suite (files only)
-cargo run --bin polyphonica-test test-suite -o test_results/
+polyphonica-test test-suite --output test_results/
 
 # High quality tests with playback
-cargo run --bin polyphonica-test test-suite -s 48000 -o high_quality_tests/ --play --volume 0.3
+polyphonica-test test-suite --sample-rate 48000 --output high_quality_tests/ --play --volume 0.3
 ```
 
 **Generated Test Files:**
 - `sine_440hz.wav`, `square_440hz.wav`, `sawtooth_440hz.wav`, `triangle_440hz.wav`
+- `pulse_25_duty.wav`, `pulse_50_duty.wav`, `pulse_75_duty.wav`
+- `white_noise.wav`
 - `envelope_piano.wav`, `envelope_organ.wav`, `envelope_pluck.wav`
 - `frequency_sweep.wav` (110Hz → 880Hz sawtooth)
 - `polyphonic_chord.wav`, `polyphonic_arpeggio.wav`, `polyphonic_scale.wav`
+- `sample_tests/` (if samples directory exists)
 
 ### Issue Reporting System
 
