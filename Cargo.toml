@@ -18,6 +18,10 @@ path = "src/lib.rs"
 name = "polyphonica-test"
 path = "src/bin/test_tool.rs"
 
+[[example]]
+name = "realtime_demo"
+path = "examples/realtime_demo.rs"
+
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
 hound = "3.5"
