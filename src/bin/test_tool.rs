@@ -117,6 +117,70 @@ enum Commands {
         #[arg(short, long, default_value = "0.3")]
         volume: f32,
     },
+    /// Test WAV sample loading and playback
+    Sample {
+        /// Path to WAV file
+        wav_file: PathBuf,
+        /// Base frequency of the sample (Hz)
+        #[arg(short, long)]
+        base_frequency: f32,
+        /// Target playback frequency (Hz)
+        #[arg(short, long, default_value = "440.0")]
+        target_frequency: f32,
+        /// Duration to play (seconds)
+        #[arg(short, long, default_value = "2.0")]
+        duration: f32,
+        /// Sample rate for playback
+        #[arg(short, long, default_value = "44100")]
+        sample_rate: u32,
+        /// Output file path
+        #[arg(short, long, default_value = "sample_test.wav")]
+        output: PathBuf,
+        /// Play audio immediately through speakers
+        #[arg(short, long)]
+        play: bool,
+        /// Volume level (0.0-1.0)
+        #[arg(short, long, default_value = "0.5")]
+        volume: f32,
+    },
+    /// Create sample-based sound event with ADSR
+    SampleEvent {
+        /// Path to WAV file
+        wav_file: PathBuf,
+        /// Base frequency of the sample (Hz)
+        #[arg(short, long)]
+        base_frequency: f32,
+        /// Target playback frequency (Hz)
+        #[arg(short, long, default_value = "440.0")]
+        target_frequency: f32,
+        /// Duration in seconds
+        #[arg(short, long, default_value = "2.0")]
+        duration: f32,
+        /// Attack time in seconds
+        #[arg(long, default_value = "0.01")]
+        attack: f32,
+        /// Decay time in seconds
+        #[arg(long, default_value = "0.1")]
+        decay: f32,
+        /// Sustain level (0.0-1.0)
+        #[arg(long, default_value = "0.0")]
+        sustain: f32,
+        /// Release time in seconds
+        #[arg(long, default_value = "0.3")]
+        release: f32,
+        /// Sample rate
+        #[arg(short, long, default_value = "44100")]
+        sample_rate: u32,
+        /// Output file path
+        #[arg(short, long, default_value = "sample_event.wav")]
+        output: PathBuf,
+        /// Play audio immediately through speakers
+        #[arg(short, long)]
+        play: bool,
+        /// Volume level (0.0-1.0)
+        #[arg(short, long, default_value = "0.5")]
+        volume: f32,
+    },
     /// Report an issue with the library
     ReportIssue {
         /// Issue description
@@ -398,7 +462,7 @@ fn run_test_suite(output_dir: &PathBuf, sample_rate: u32, play: bool, volume: f3
     let waveforms = [Waveform::Sine, Waveform::Square, Waveform::Sawtooth, Waveform::Triangle];
 
     for waveform in &waveforms {
-        let samples = generate_wave(*waveform, 440.0, 1.0, sample_rate);
+        let samples = generate_wave(waveform.clone(), 440.0, 1.0, sample_rate);
         let filename = format!("{:?}_440hz.wav", waveform).to_lowercase();
         write_wav_file(&samples, sample_rate, &output_dir.join(filename))?;
     }
@@ -559,6 +623,80 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             if play {
                 play_audio(&timeline, sample_rate, volume)?;
+            }
+        }
+
+        Commands::Sample { wav_file, base_frequency, target_frequency, duration, sample_rate, output, play, volume } => {
+            println!("Loading sample: {} (base: {:.1}Hz, target: {:.1}Hz)", wav_file.display(), base_frequency, target_frequency);
+
+            // Load the sample
+            let sample_data = match SampleData::from_file(&wav_file, base_frequency) {
+                Ok(data) => data,
+                Err(e) => {
+                    eprintln!("Error loading sample: {}", e);
+                    return Ok(());
+                }
+            };
+
+            println!("Sample loaded: {:.2}s, {} channels, {}Hz",
+                sample_data.metadata.duration_secs,
+                sample_data.metadata.channels,
+                sample_data.sample_rate
+            );
+
+            // Create sample waveform and generate audio
+            let waveform = Waveform::Sample(sample_data);
+            let samples = generate_wave(waveform, target_frequency, duration, sample_rate);
+
+            write_wav_file(&samples, sample_rate, &output)?;
+
+            if play {
+                play_audio(&samples, sample_rate, volume)?;
+            }
+        }
+
+        Commands::SampleEvent { wav_file, base_frequency, target_frequency, duration, attack, decay, sustain, release, sample_rate, output, play, volume } => {
+            println!("Creating sample event: {} (base: {:.1}Hz, target: {:.1}Hz)", wav_file.display(), base_frequency, target_frequency);
+
+            // Load the sample
+            let sample_data = match SampleData::from_file(&wav_file, base_frequency) {
+                Ok(data) => data,
+                Err(e) => {
+                    eprintln!("Error loading sample: {}", e);
+                    return Ok(());
+                }
+            };
+
+            println!("Sample loaded: {:.2}s, {} channels, {}Hz",
+                sample_data.metadata.duration_secs,
+                sample_data.metadata.channels,
+                sample_data.sample_rate
+            );
+
+            // Create ADSR envelope
+            let envelope = AdsrEnvelope {
+                attack_secs: attack,
+                decay_secs: decay,
+                sustain_level: sustain,
+                release_secs: release,
+            };
+
+            println!("ADSR: A={:.2}s D={:.2}s S={:.2} R={:.2}s", attack, decay, sustain, release);
+
+            // Create sample event
+            let event = SoundEvent {
+                waveform: Waveform::Sample(sample_data),
+                start_frequency: target_frequency,
+                end_frequency: target_frequency,
+                duration_secs: duration,
+                envelope,
+            };
+
+            let samples = render_event(&event, sample_rate);
+            write_wav_file(&samples, sample_rate, &output)?;
+
+            if play {
+                play_audio(&samples, sample_rate, volume)?;
             }
         }
 
