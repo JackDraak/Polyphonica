@@ -219,12 +219,18 @@ Guitar Buddy includes a comprehensive drum sample management system:
 - **Minimal Processing**: ADSR envelopes allow natural sample decay
 
 #### Available Samples
+
+**Currently Used in Phase 1 Metronome:**
 - `drumkit-kick.wav` - Deep acoustic kick drum
 - `drumkit-snare.wav` - Crisp snare drum (mono)
 - `drumkit-rimshot.wav` - Sharp snare rim shot
 - `drumkit-stick.wav` - Drumstick click sound
 - `drumkit-hihat.wav` - Closed hi-hat (tight sound)
 - `drumkit-hihat-open.wav` - Open hi-hat (sustained)
+
+**Additional Samples for Phase 2 Development:**
+- `drumkit-ride.wav` - Ride cymbal for rhythm patterns
+- `drumkit-ride-bell.wav` - Ride bell for accents and highlights
 - `drumkit-hihat-lose.wav` - Loose hi-hat (medium decay)
 - `drumkit-hihat-vlose.wav` - Very loose hi-hat (long decay)
 - `drumkit-cymbol-splash.wav` - Splash cymbal
@@ -251,13 +257,18 @@ A complete catalog file (`drum_samples_catalog.json`) documents:
 - [x] Drum sample catalog system for Phase 2 expansion
 
 ### Phase 2 (Planned) 🚧
-- [ ] Drum pattern library
+- [ ] Drum pattern library with ride cymbal and bell accents
 - [ ] Bass line generation
 - [ ] Piano chord accompaniment
 - [ ] Key/chord progression management
 - [ ] Practice session recording
 - [ ] Tempo training features
 - [ ] Multi-track mixing controls
+
+**Ride Cymbal Integration:**
+- **Steady Patterns**: Ride cymbal for consistent rhythm in jazz, rock, and blues
+- **Bell Accents**: Ride bell for phrase endings and musical emphasis
+- **Pattern Variations**: Multiple hi-hat options (tight, loose, very loose) for groove diversity
 
 ## Troubleshooting
 

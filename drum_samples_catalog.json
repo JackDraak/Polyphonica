@@ -109,6 +109,26 @@
           "duration_ms": 2000,
           "recommended_velocity": 0.9,
           "metronome_usage": false
+        },
+        "ride": {
+          "file": "drumkit-ride.wav",
+          "description": "Ride cymbal for rhythm patterns",
+          "sample_rate": 44100,
+          "channels": "stereo",
+          "duration_ms": 1500,
+          "recommended_velocity": 0.7,
+          "metronome_usage": false,
+          "phase_2_usage": true
+        },
+        "ride_bell": {
+          "file": "drumkit-ride-bell.wav",
+          "description": "Ride bell for accents and highlights",
+          "sample_rate": 44100,
+          "channels": "stereo",
+          "duration_ms": 800,
+          "recommended_velocity": 0.8,
+          "metronome_usage": false,
+          "phase_2_usage": true
         }
       }
     }
