@@ -457,12 +457,23 @@ impl GuitarBuddy {
     fn trigger_click(&self, is_accent: bool) {
         let metronome = self.app_state.metronome.lock().unwrap();
         let drum_samples = self.app_state.drum_samples.lock().unwrap();
-        let (waveform, frequency, mut envelope) = metronome.click_type.get_sound_params(&drum_samples);
+
+        // Use different sound for accents to make them clearly distinct
+        let (waveform, frequency, mut envelope) = if is_accent && metronome.accent_first_beat {
+            // For accents, use a more prominent sound
+            self.get_accent_sound(&metronome, &drum_samples)
+        } else {
+            // Regular click
+            metronome.click_type.get_sound_params(&drum_samples)
+        };
+
         let volume = if is_accent && metronome.accent_first_beat {
-            (metronome.volume * 1.5).min(1.0)
+            // Significantly louder accent (double volume)
+            (metronome.volume * 2.0).min(1.0)
         } else {
             metronome.volume
         };
+
         drop(metronome);
         drop(drum_samples);
 
@@ -471,6 +482,62 @@ impl GuitarBuddy {
 
         let mut engine = self.app_state.engine.lock().unwrap();
         engine.trigger_note(waveform, frequency, envelope);
+    }
+
+    fn get_accent_sound(&self, metronome: &MetronomeState, drum_samples: &DrumSampleManager) -> (Waveform, f32, AdsrEnvelope) {
+        // Choose accent sound based on the current click type
+        match metronome.click_type {
+            // For drum samples, use kick drum for accent
+            ClickType::AcousticSnare | ClickType::HiHatClosed | ClickType::HiHatOpen |
+            ClickType::RimShot | ClickType::Stick => {
+                ClickType::AcousticKick.get_sound_params(drum_samples)
+            }
+            // For kick drum, use snare for accent
+            ClickType::AcousticKick => {
+                ClickType::AcousticSnare.get_sound_params(drum_samples)
+            }
+            // For synthetic sounds, use higher pitch and different waveform
+            ClickType::WoodBlock => (
+                Waveform::Square, // Different waveform
+                1600.0,           // Higher pitch
+                AdsrEnvelope {
+                    attack_secs: 0.001,
+                    decay_secs: 0.1,
+                    sustain_level: 0.0,
+                    release_secs: 0.05,
+                }
+            ),
+            ClickType::DigitalBeep => (
+                Waveform::Square, // Different waveform
+                2000.0,           // Much higher pitch
+                AdsrEnvelope {
+                    attack_secs: 0.001,
+                    decay_secs: 0.12,
+                    sustain_level: 0.0,
+                    release_secs: 0.06,
+                }
+            ),
+            ClickType::Cowbell => (
+                Waveform::Triangle, // Different waveform
+                1600.0,             // Higher pitch
+                AdsrEnvelope {
+                    attack_secs: 0.001,
+                    decay_secs: 0.2,
+                    sustain_level: 0.0,
+                    release_secs: 0.15,
+                }
+            ),
+            ClickType::ElectroClick => (
+                Waveform::Sine, // Different waveform
+                2400.0,         // Much higher pitch
+                AdsrEnvelope {
+                    attack_secs: 0.001,
+                    decay_secs: 0.06,
+                    sustain_level: 0.0,
+                    release_secs: 0.04,
+                }
+            ),
+        }
     }
 }
 
