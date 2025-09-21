@@ -60,14 +60,14 @@ impl DrumSampleManager {
     }
 
     fn load_drum_samples(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        // Load acoustic drum kit samples
+        // Load acoustic drum kit samples using relative paths from project root
         let sample_paths = vec![
             (ClickType::AcousticKick, "samples/drums/acoustic/kit_01/drumkit-kick.wav"),
             (ClickType::AcousticSnare, "samples/drums/acoustic/kit_01/drumkit-snare.wav"),
             (ClickType::HiHatClosed, "samples/drums/acoustic/kit_01/drumkit-hihat.wav"),
             (ClickType::HiHatOpen, "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav"),
-            (ClickType::RimShot, "samples/drums/acoustic/kit_01/drumkit-snare.wav"), // Reuse snare with different envelope
-            (ClickType::Stick, "samples/drums/acoustic/kit_01/drumkit-hihat.wav"),   // Reuse hi-hat with short envelope
+            (ClickType::RimShot, "samples/drums/acoustic/kit_01/drumkit-rimshot.wav"), // Dedicated rimshot sample
+            (ClickType::Stick, "samples/drums/acoustic/kit_01/drumkit-hihat.wav"),    // Reuse hi-hat with short envelope
         ];
 
         for (click_type, path) in sample_paths {

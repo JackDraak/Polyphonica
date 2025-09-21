@@ -38,6 +38,15 @@
           "recommended_velocity": 0.8,
           "metronome_usage": true
         },
+        "rimshot": {
+          "file": "drumkit-rimshot.wav",
+          "description": "Sharp snare rim shot",
+          "sample_rate": 44100,
+          "channels": "stereo",
+          "duration_ms": 300,
+          "recommended_velocity": 0.7,
+          "metronome_usage": true
+        },
         "hihat_closed": {
           "file": "drumkit-hihat.wav",
           "description": "Closed hi-hat with short decay",
@@ -138,10 +147,10 @@
     },
     "RimShot": {
       "kit": "Acoustic Kit 01",
-      "sample": "snare",
+      "sample": "rimshot",
       "envelope": {
         "attack_secs": 0.001,
-        "decay_secs": 0.05,
+        "decay_secs": 0.1,
         "sustain_level": 0.0,
         "release_secs": 0.02
       }

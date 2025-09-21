@@ -221,6 +221,7 @@ Guitar Buddy includes a comprehensive drum sample management system:
 #### Available Samples
 - `drumkit-kick.wav` - Deep acoustic kick drum
 - `drumkit-snare.wav` - Crisp snare drum (mono)
+- `drumkit-rimshot.wav` - Sharp snare rim shot
 - `drumkit-hihat.wav` - Closed hi-hat (tight sound)
 - `drumkit-hihat-open.wav` - Open hi-hat (sustained)
 - `drumkit-hihat-lose.wav` - Loose hi-hat (medium decay)
