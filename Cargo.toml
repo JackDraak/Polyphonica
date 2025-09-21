@@ -26,6 +26,10 @@ path = "examples/realtime_demo.rs"
 name = "rt-demo"
 path = "src/bin/rt_demo.rs"
 
+[[bin]]
+name = "guitar-buddy"
+path = "src/bin/guitar_buddy.rs"
+
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
 hound = "3.5"
