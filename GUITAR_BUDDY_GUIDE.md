@@ -83,9 +83,11 @@ Guitar Buddy supports both synthetic waveforms and real drum samples:
 
 **Real Drum Samples:**
 - **Acoustic Kit**: Professional-quality drum samples from `samples/drums/acoustic/kit_01/`
-- **Sample Loading**: Automatic fallback to synthetic sounds if samples unavailable
-- **Custom Envelopes**: Each sample uses optimized ADSR envelopes for metronome use
+- **Natural Playback**: Drums play at their recorded speed without pitch shifting
+- **Minimal Envelopes**: ADSR envelopes preserve natural drum character
+- **One-Shot Design**: Samples play through naturally without looping
 - **44.1kHz Quality**: High-resolution audio for professional practice
+- **Automatic Fallback**: Uses synthetic sounds if samples unavailable
 
 #### GUI Features
 - **Real-time Updates**: 10ms refresh rate for smooth operation
@@ -156,6 +158,8 @@ Guitar Buddy supports both synthetic waveforms and real drum samples:
 
 #### Sample Integration
 - **Drum Sample Library**: Real acoustic drum samples integrated in Phase 1
+- **Natural Playback Engine**: `DrumSample` waveform type bypasses pitch shifting
+- **Authentic Sound**: Preserves original drum recordings without frequency distortion
 - **Expandable Sample System**: Support for multiple drum kits and styles
 - **Future Samples**: Piano sample libraries for authentic keyboard sounds
 - **Bass Integration**: Bass sample modeling for natural bass tones
@@ -210,7 +214,9 @@ Guitar Buddy includes a comprehensive drum sample management system:
 - **Automatic Discovery**: Loads samples from `samples/drums/acoustic/kit_01/`
 - **Graceful Fallback**: Uses synthetic sounds if samples unavailable
 - **Format Support**: WAV files at various sample rates (auto-converted to 44.1kHz)
-- **Optimized Envelopes**: Custom ADSR settings for each drum type
+- **Natural Playback**: `DrumSample` waveform type preserves original recording characteristics
+- **No Pitch Shifting**: Drums maintain their authentic sound without frequency manipulation
+- **Minimal Processing**: ADSR envelopes allow natural sample decay
 
 #### Available Samples
 - `drumkit-kick.wav` - Deep acoustic kick drum

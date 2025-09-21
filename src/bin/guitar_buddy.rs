@@ -152,7 +152,7 @@ impl ClickType {
         // Check if we have a sample for this click type
         if let Some(sample_data) = sample_manager.get_sample(&self) {
             return (
-                Waveform::Sample(sample_data.clone()),
+                Waveform::DrumSample(sample_data.clone()),
                 440.0, // Frequency is ignored for drum samples
                 self.get_sample_envelope()
             );
@@ -163,43 +163,44 @@ impl ClickType {
     }
 
     /// Get ADSR envelope for sample-based sounds
+    /// For drums, we use minimal envelope shaping to preserve natural character
     fn get_sample_envelope(self) -> AdsrEnvelope {
         match self {
             ClickType::AcousticKick => AdsrEnvelope {
-                attack_secs: 0.001,
-                decay_secs: 0.3,
-                sustain_level: 0.0,
-                release_secs: 0.1,
+                attack_secs: 0.001,  // Instant attack
+                decay_secs: 1.0,     // Let natural sample decay
+                sustain_level: 0.0,  // No sustain - one-shot sample
+                release_secs: 0.001, // Minimal release
             },
             ClickType::AcousticSnare => AdsrEnvelope {
                 attack_secs: 0.001,
-                decay_secs: 0.15,
+                decay_secs: 0.5,     // Let natural snare ring
                 sustain_level: 0.0,
-                release_secs: 0.05,
+                release_secs: 0.001,
             },
             ClickType::HiHatClosed => AdsrEnvelope {
                 attack_secs: 0.001,
-                decay_secs: 0.08,
+                decay_secs: 0.2,     // Natural hi-hat decay
                 sustain_level: 0.0,
-                release_secs: 0.02,
+                release_secs: 0.001,
             },
             ClickType::HiHatOpen => AdsrEnvelope {
                 attack_secs: 0.001,
-                decay_secs: 0.25,
+                decay_secs: 1.0,     // Let open hi-hat ring naturally
                 sustain_level: 0.0,
-                release_secs: 0.1,
+                release_secs: 0.001,
             },
             ClickType::RimShot => AdsrEnvelope {
                 attack_secs: 0.001,
-                decay_secs: 0.05,
+                decay_secs: 0.3,     // Natural rim shot decay
                 sustain_level: 0.0,
-                release_secs: 0.02,
+                release_secs: 0.001,
             },
             ClickType::Stick => AdsrEnvelope {
                 attack_secs: 0.001,
-                decay_secs: 0.03,
+                decay_secs: 0.1,     // Short stick click
                 sustain_level: 0.0,
-                release_secs: 0.01,
+                release_secs: 0.001,
             },
             // For synthetic sounds, use default
             _ => AdsrEnvelope {

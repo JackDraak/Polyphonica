@@ -55,6 +55,9 @@ fn generate_sample(waveform: &Waveform, phase: f32, time_secs: f32, target_frequ
         Waveform::Sample(sample_data) => {
             sample_data.get_sample_at_time(time_secs, target_frequency)
         }
+        Waveform::DrumSample(sample_data) => {
+            sample_data.get_natural_sample_at_time(time_secs)
+        }
     }
 }
 
@@ -67,6 +70,8 @@ pub enum Waveform {
     Pulse { duty_cycle: f32 },
     Noise,
     Sample(SampleData),
+    /// Drum sample played at natural speed without pitch shifting
+    DrumSample(SampleData),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -207,6 +212,49 @@ impl SampleData {
     }
 
     /// Get a sample at a specific time position with pitch shifting
+    /// Get sample at natural playback speed (no pitch shifting) - ideal for drums
+    pub fn get_natural_sample_at_time(&self, time_secs: f32) -> f32 {
+        if self.samples.is_empty() {
+            return 0.0;
+        }
+
+        // Play at natural speed - no frequency-based pitch shifting
+        let sample_pos = time_secs * self.sample_rate as f32;
+
+        // Handle looping
+        let (loop_start, loop_end) = match (self.loop_start, self.loop_end) {
+            (Some(start), Some(end)) => (start as f32, end as f32),
+            _ => (0.0, self.samples.len() as f32),
+        };
+
+        let effective_pos = if sample_pos >= loop_end {
+            // For drums, often we want one-shot playback, so return 0 after sample ends
+            if self.loop_start.is_none() && self.loop_end.is_none() {
+                return 0.0; // Sample has ended naturally
+            }
+            // Loop back to start
+            let loop_length = loop_end - loop_start;
+            let overflow = sample_pos - loop_end;
+            loop_start + (overflow % loop_length)
+        } else {
+            sample_pos
+        };
+
+        // Linear interpolation between samples
+        let floor_pos = effective_pos.floor() as usize;
+        let ceil_pos = (floor_pos + 1).min(self.samples.len() - 1);
+        let fraction = effective_pos - floor_pos as f32;
+
+        if floor_pos >= self.samples.len() {
+            return 0.0;
+        }
+
+        let sample_low = self.samples[floor_pos];
+        let sample_high = self.samples[ceil_pos];
+
+        sample_low + fraction * (sample_high - sample_low)
+    }
+
     pub fn get_sample_at_time(&self, time_secs: f32, target_frequency: f32) -> f32 {
         if self.samples.is_empty() {
             return 0.0;
