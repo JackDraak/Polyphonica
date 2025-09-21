@@ -5,12 +5,13 @@
 ///
 /// Uses Polyphonica real-time synthesis engine for precise, low-latency audio generation.
 
-use polyphonica::{RealtimeEngine, Waveform, AdsrEnvelope};
+use polyphonica::{RealtimeEngine, Waveform, AdsrEnvelope, SampleData};
 use eframe::egui;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, Stream, StreamConfig};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use std::collections::HashMap;
 
 /// Time signature representation
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -45,42 +46,173 @@ impl TimeSignature {
     }
 }
 
+/// Drum sample manager for loading and storing samples
+#[derive(Debug, Clone)]
+struct DrumSampleManager {
+    samples: HashMap<ClickType, SampleData>,
+}
+
+impl DrumSampleManager {
+    fn new() -> Self {
+        Self {
+            samples: HashMap::new(),
+        }
+    }
+
+    fn load_drum_samples(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        // Load acoustic drum kit samples
+        let sample_paths = vec![
+            (ClickType::AcousticKick, "samples/drums/acoustic/kit_01/drumkit-kick.wav"),
+            (ClickType::AcousticSnare, "samples/drums/acoustic/kit_01/drumkit-snare.wav"),
+            (ClickType::HiHatClosed, "samples/drums/acoustic/kit_01/drumkit-hihat.wav"),
+            (ClickType::HiHatOpen, "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav"),
+            (ClickType::RimShot, "samples/drums/acoustic/kit_01/drumkit-snare.wav"), // Reuse snare with different envelope
+            (ClickType::Stick, "samples/drums/acoustic/kit_01/drumkit-hihat.wav"),   // Reuse hi-hat with short envelope
+        ];
+
+        for (click_type, path) in sample_paths {
+            match SampleData::from_file(path, 440.0) {
+                Ok(sample_data) => {
+                    println!("✅ Loaded drum sample: {} from {}", click_type.name(), path);
+                    self.samples.insert(click_type, sample_data);
+                }
+                Err(e) => {
+                    println!("⚠️  Could not load {}: {} (falling back to synthetic)", path, e);
+                    // Continue without the sample - will fall back to synthetic sound
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn get_sample(&self, click_type: &ClickType) -> Option<&SampleData> {
+        self.samples.get(click_type)
+    }
+
+    fn has_sample(&self, click_type: &ClickType) -> bool {
+        self.samples.contains_key(click_type)
+    }
+}
+
 /// Different metronome click sound types
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum ClickType {
+    // Synthetic sounds
     WoodBlock,      // Sharp percussive click
     DigitalBeep,    // Clean sine wave beep
     Cowbell,        // Metallic ring
-    Rim,            // Snare rim shot
-    Tick,           // Subtle tick sound
     ElectroClick,   // Electronic click
+    // Real drum samples
+    AcousticKick,   // Acoustic kick drum
+    AcousticSnare,  // Acoustic snare drum
+    HiHatClosed,    // Closed hi-hat
+    HiHatOpen,      // Open hi-hat
+    RimShot,        // Snare rim (using snare sample with envelope)
+    Stick,          // Drumstick click (using hi-hat)
 }
 
 impl ClickType {
-    fn all() -> &'static [ClickType] {
-        &[
+    fn all() -> Vec<ClickType> {
+        vec![
+            // Synthetic sounds
             ClickType::WoodBlock,
             ClickType::DigitalBeep,
             ClickType::Cowbell,
-            ClickType::Rim,
-            ClickType::Tick,
             ClickType::ElectroClick,
+            // Real drum samples
+            ClickType::AcousticKick,
+            ClickType::AcousticSnare,
+            ClickType::HiHatClosed,
+            ClickType::HiHatOpen,
+            ClickType::RimShot,
+            ClickType::Stick,
         ]
     }
 
     fn name(self) -> &'static str {
         match self {
+            // Synthetic sounds
             ClickType::WoodBlock => "Wood Block",
             ClickType::DigitalBeep => "Digital Beep",
             ClickType::Cowbell => "Cowbell",
-            ClickType::Rim => "Rim Shot",
-            ClickType::Tick => "Subtle Tick",
             ClickType::ElectroClick => "Electro Click",
+            // Real drum samples
+            ClickType::AcousticKick => "Acoustic Kick",
+            ClickType::AcousticSnare => "Acoustic Snare",
+            ClickType::HiHatClosed => "Hi-Hat Closed",
+            ClickType::HiHatOpen => "Hi-Hat Open",
+            ClickType::RimShot => "Rim Shot",
+            ClickType::Stick => "Drum Stick",
         }
     }
 
     /// Generate the waveform and parameters for this click type
-    fn get_sound_params(self) -> (Waveform, f32, AdsrEnvelope) {
+    fn get_sound_params(self, sample_manager: &DrumSampleManager) -> (Waveform, f32, AdsrEnvelope) {
+        // Check if we have a sample for this click type
+        if let Some(sample_data) = sample_manager.get_sample(&self) {
+            return (
+                Waveform::Sample(sample_data.clone()),
+                440.0, // Frequency is ignored for drum samples
+                self.get_sample_envelope()
+            );
+        }
+
+        // Fall back to synthetic sound
+        self.get_synthetic_params()
+    }
+
+    /// Get ADSR envelope for sample-based sounds
+    fn get_sample_envelope(self) -> AdsrEnvelope {
+        match self {
+            ClickType::AcousticKick => AdsrEnvelope {
+                attack_secs: 0.001,
+                decay_secs: 0.3,
+                sustain_level: 0.0,
+                release_secs: 0.1,
+            },
+            ClickType::AcousticSnare => AdsrEnvelope {
+                attack_secs: 0.001,
+                decay_secs: 0.15,
+                sustain_level: 0.0,
+                release_secs: 0.05,
+            },
+            ClickType::HiHatClosed => AdsrEnvelope {
+                attack_secs: 0.001,
+                decay_secs: 0.08,
+                sustain_level: 0.0,
+                release_secs: 0.02,
+            },
+            ClickType::HiHatOpen => AdsrEnvelope {
+                attack_secs: 0.001,
+                decay_secs: 0.25,
+                sustain_level: 0.0,
+                release_secs: 0.1,
+            },
+            ClickType::RimShot => AdsrEnvelope {
+                attack_secs: 0.001,
+                decay_secs: 0.05,
+                sustain_level: 0.0,
+                release_secs: 0.02,
+            },
+            ClickType::Stick => AdsrEnvelope {
+                attack_secs: 0.001,
+                decay_secs: 0.03,
+                sustain_level: 0.0,
+                release_secs: 0.01,
+            },
+            // For synthetic sounds, use default
+            _ => AdsrEnvelope {
+                attack_secs: 0.001,
+                decay_secs: 0.1,
+                sustain_level: 0.0,
+                release_secs: 0.05,
+            },
+        }
+    }
+
+    /// Get synthetic sound parameters (fallback when no sample available)
+    fn get_synthetic_params(self) -> (Waveform, f32, AdsrEnvelope) {
         match self {
             ClickType::WoodBlock => (
                 Waveform::Noise,
@@ -112,7 +244,7 @@ impl ClickType {
                     release_secs: 0.1,
                 }
             ),
-            ClickType::Rim => (
+            ClickType::RimShot => (
                 Waveform::Pulse { duty_cycle: 0.1 },
                 400.0,
                 AdsrEnvelope {
@@ -122,7 +254,7 @@ impl ClickType {
                     release_secs: 0.02,
                 }
             ),
-            ClickType::Tick => (
+            ClickType::Stick => (
                 Waveform::Triangle,
                 2000.0,
                 AdsrEnvelope {
@@ -140,6 +272,47 @@ impl ClickType {
                     decay_secs: 0.04,
                     sustain_level: 0.0,
                     release_secs: 0.03,
+                }
+            ),
+            // For drum samples without sample data, provide synthetic alternatives
+            ClickType::AcousticKick => (
+                Waveform::Sine,
+                60.0,
+                AdsrEnvelope {
+                    attack_secs: 0.001,
+                    decay_secs: 0.3,
+                    sustain_level: 0.0,
+                    release_secs: 0.1,
+                }
+            ),
+            ClickType::AcousticSnare => (
+                Waveform::Noise,
+                800.0,
+                AdsrEnvelope {
+                    attack_secs: 0.001,
+                    decay_secs: 0.15,
+                    sustain_level: 0.0,
+                    release_secs: 0.05,
+                }
+            ),
+            ClickType::HiHatClosed => (
+                Waveform::Pulse { duty_cycle: 0.1 },
+                8000.0,
+                AdsrEnvelope {
+                    attack_secs: 0.001,
+                    decay_secs: 0.08,
+                    sustain_level: 0.0,
+                    release_secs: 0.02,
+                }
+            ),
+            ClickType::HiHatOpen => (
+                Waveform::Pulse { duty_cycle: 0.1 },
+                6000.0,
+                AdsrEnvelope {
+                    attack_secs: 0.001,
+                    decay_secs: 0.25,
+                    sustain_level: 0.0,
+                    release_secs: 0.1,
                 }
             ),
         }
@@ -242,6 +415,7 @@ impl MetronomeState {
 struct AppState {
     engine: Arc<Mutex<RealtimeEngine>>,
     metronome: Arc<Mutex<MetronomeState>>,
+    drum_samples: Arc<Mutex<DrumSampleManager>>,
 }
 
 /// Main application for Guitar Buddy
@@ -258,10 +432,16 @@ impl GuitarBuddy {
         // Initialize metronome state
         let metronome = Arc::new(Mutex::new(MetronomeState::new()));
 
+        // Initialize and load drum samples
+        let mut drum_samples = DrumSampleManager::new();
+        drum_samples.load_drum_samples()?;
+        let drum_samples = Arc::new(Mutex::new(drum_samples));
+
         // Create shared state
         let app_state = AppState {
             engine: engine.clone(),
             metronome: metronome.clone(),
+            drum_samples: drum_samples.clone(),
         };
 
         // Setup audio stream
@@ -275,13 +455,15 @@ impl GuitarBuddy {
 
     fn trigger_click(&self, is_accent: bool) {
         let metronome = self.app_state.metronome.lock().unwrap();
-        let (waveform, frequency, mut envelope) = metronome.click_type.get_sound_params();
+        let drum_samples = self.app_state.drum_samples.lock().unwrap();
+        let (waveform, frequency, mut envelope) = metronome.click_type.get_sound_params(&drum_samples);
         let volume = if is_accent && metronome.accent_first_beat {
             (metronome.volume * 1.5).min(1.0)
         } else {
             metronome.volume
         };
         drop(metronome);
+        drop(drum_samples);
 
         // Adjust envelope amplitude based on volume
         envelope.sustain_level *= volume;
@@ -397,7 +579,7 @@ impl eframe::App for GuitarBuddy {
                 let mut metronome = self.app_state.metronome.lock().unwrap();
                 let mut current_click = metronome.click_type;
 
-                for &click_type in ClickType::all() {
+                for &click_type in &ClickType::all() {
                     if ui.radio_value(&mut current_click, click_type, click_type.name()).clicked() {
                         metronome.click_type = current_click;
                     }
@@ -424,8 +606,10 @@ impl eframe::App for GuitarBuddy {
             ui.horizontal(|ui| {
                 if ui.button("🔊 Test Click").clicked() {
                     let metronome = self.app_state.metronome.lock().unwrap();
-                    let (waveform, frequency, envelope) = metronome.click_type.get_sound_params();
+                    let drum_samples = self.app_state.drum_samples.lock().unwrap();
+                    let (waveform, frequency, envelope) = metronome.click_type.get_sound_params(&drum_samples);
                     drop(metronome);
+                    drop(drum_samples);
 
                     let mut engine = self.app_state.engine.lock().unwrap();
                     engine.trigger_note(waveform, frequency, envelope);

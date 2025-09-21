@@ -1,0 +1,235 @@
+{
+  "catalog_version": "1.0",
+  "description": "Guitar Buddy Drum Sample Catalog for Phase 2 Pattern Library",
+  "created": "2024-09-21",
+  "sample_rate": 44100,
+  "format": "WAV",
+  "
+  "drum_kits": [
+    {
+      "kit_name": "Acoustic Kit 01",
+      "kit_path": "samples/drums/acoustic/kit_01/",
+      "description": "Natural acoustic drum kit with warm, organic sound",
+      "samples": {
+        "kick": {
+          "file": "drumkit-kick.wav",
+          "description": "Deep acoustic kick drum",
+          "sample_rate": 44100,
+          "channels": "stereo",
+          "duration_ms": 800,
+          "recommended_velocity": 0.8,
+          "metronome_usage": true
+        },
+        "kick_tight": {
+          "file": "drumkit-kick-tight.wav",
+          "description": "Tight, punchy kick drum variant",
+          "sample_rate": 44100,
+          "channels": "stereo",
+          "duration_ms": 600,
+          "recommended_velocity": 0.9,
+          "metronome_usage": false
+        },
+        "snare": {
+          "file": "drumkit-snare.wav",
+          "description": "Crisp acoustic snare drum",
+          "sample_rate": 44100,
+          "channels": "mono",
+          "duration_ms": 400,
+          "recommended_velocity": 0.8,
+          "metronome_usage": true
+        },
+        "hihat_closed": {
+          "file": "drumkit-hihat.wav",
+          "description": "Closed hi-hat with short decay",
+          "sample_rate": 44100,
+          "channels": "stereo",
+          "duration_ms": 200,
+          "recommended_velocity": 0.6,
+          "metronome_usage": true
+        },
+        "hihat_open": {
+          "file": "drumkit-hihat-open.wav",
+          "description": "Open hi-hat with sustain",
+          "sample_rate": 24000,
+          "channels": "stereo",
+          "duration_ms": 800,
+          "recommended_velocity": 0.7,
+          "metronome_usage": true
+        },
+        "hihat_loose": {
+          "file": "drumkit-hihat-lose.wav",
+          "description": "Loose hi-hat with medium decay",
+          "sample_rate": 44100,
+          "channels": "stereo",
+          "duration_ms": 400,
+          "recommended_velocity": 0.5,
+          "metronome_usage": false
+        },
+        "hihat_very_loose": {
+          "file": "drumkit-hihat-vlose.wav",
+          "description": "Very loose hi-hat with long decay",
+          "sample_rate": 44100,
+          "channels": "stereo",
+          "duration_ms": 600,
+          "recommended_velocity": 0.4,
+          "metronome_usage": false
+        },
+        "cymbal_splash": {
+          "file": "drumkit-cymbol-splash.wav",
+          "description": "Splash cymbal for accents",
+          "sample_rate": 44100,
+          "channels": "stereo",
+          "duration_ms": 1200,
+          "recommended_velocity": 0.8,
+          "metronome_usage": false
+        },
+        "cymbal_roll": {
+          "file": "drumkit-cymball-roll.wav",
+          "description": "Cymbal roll/crash",
+          "sample_rate": 24000,
+          "channels": "stereo",
+          "duration_ms": 2000,
+          "recommended_velocity": 0.9,
+          "metronome_usage": false
+        }
+      }
+    }
+  ],
+  "metronome_mappings": {
+    "AcousticKick": {
+      "kit": "Acoustic Kit 01",
+      "sample": "kick",
+      "envelope": {
+        "attack_secs": 0.001,
+        "decay_secs": 0.3,
+        "sustain_level": 0.0,
+        "release_secs": 0.1
+      }
+    },
+    "AcousticSnare": {
+      "kit": "Acoustic Kit 01",
+      "sample": "snare",
+      "envelope": {
+        "attack_secs": 0.001,
+        "decay_secs": 0.15,
+        "sustain_level": 0.0,
+        "release_secs": 0.05
+      }
+    },
+    "HiHatClosed": {
+      "kit": "Acoustic Kit 01",
+      "sample": "hihat_closed",
+      "envelope": {
+        "attack_secs": 0.001,
+        "decay_secs": 0.08,
+        "sustain_level": 0.0,
+        "release_secs": 0.02
+      }
+    },
+    "HiHatOpen": {
+      "kit": "Acoustic Kit 01",
+      "sample": "hihat_open",
+      "envelope": {
+        "attack_secs": 0.001,
+        "decay_secs": 0.25,
+        "sustain_level": 0.0,
+        "release_secs": 0.1
+      }
+    },
+    "RimShot": {
+      "kit": "Acoustic Kit 01",
+      "sample": "snare",
+      "envelope": {
+        "attack_secs": 0.001,
+        "decay_secs": 0.05,
+        "sustain_level": 0.0,
+        "release_secs": 0.02
+      }
+    },
+    "Stick": {
+      "kit": "Acoustic Kit 01",
+      "sample": "hihat_closed",
+      "envelope": {
+        "attack_secs": 0.001,
+        "decay_secs": 0.03,
+        "sustain_level": 0.0,
+        "release_secs": 0.01
+      }
+    }
+  },
+  "drum_patterns": {
+    "basic_rock": {
+      "name": "Basic Rock Beat",
+      "time_signature": "4/4",
+      "tempo_range": [80, 140],
+      "pattern": [
+        {"beat": 1, "samples": ["kick", "hihat_closed"], "accent": true},
+        {"beat": 1.5, "samples": ["hihat_closed"], "accent": false},
+        {"beat": 2, "samples": ["snare", "hihat_closed"], "accent": false},
+        {"beat": 2.5, "samples": ["hihat_closed"], "accent": false},
+        {"beat": 3, "samples": ["kick", "hihat_closed"], "accent": false},
+        {"beat": 3.5, "samples": ["hihat_closed"], "accent": false},
+        {"beat": 4, "samples": ["snare", "hihat_closed"], "accent": false},
+        {"beat": 4.5, "samples": ["hihat_closed"], "accent": false}
+      ]
+    },
+    "shuffle": {
+      "name": "Shuffle Beat",
+      "time_signature": "4/4",
+      "tempo_range": [60, 120],
+      "pattern": [
+        {"beat": 1, "samples": ["kick", "hihat_closed"], "accent": true},
+        {"beat": 1.67, "samples": ["hihat_closed"], "accent": false},
+        {"beat": 2, "samples": ["snare", "hihat_closed"], "accent": false},
+        {"beat": 2.67, "samples": ["hihat_closed"], "accent": false},
+        {"beat": 3, "samples": ["kick", "hihat_closed"], "accent": false},
+        {"beat": 3.67, "samples": ["hihat_closed"], "accent": false},
+        {"beat": 4, "samples": ["snare", "hihat_closed"], "accent": false},
+        {"beat": 4.67, "samples": ["hihat_closed"], "accent": false}
+      ]
+    },
+    "ballad": {
+      "name": "Ballad Beat",
+      "time_signature": "4/4",
+      "tempo_range": [60, 90],
+      "pattern": [
+        {"beat": 1, "samples": ["kick", "hihat_closed"], "accent": true},
+        {"beat": 2, "samples": ["snare", "hihat_closed"], "accent": false},
+        {"beat": 3, "samples": ["kick", "hihat_closed"], "accent": false},
+        {"beat": 4, "samples": ["snare", "hihat_closed"], "accent": false}
+      ]
+    },
+    "waltz": {
+      "name": "Waltz Beat",
+      "time_signature": "3/4",
+      "tempo_range": [90, 180],
+      "pattern": [
+        {"beat": 1, "samples": ["kick"], "accent": true},
+        {"beat": 2, "samples": ["snare"], "accent": false},
+        {"beat": 3, "samples": ["snare"], "accent": false}
+      ]
+    }
+  },
+  "phase_2_features": {
+    "pattern_library": {
+      "description": "Pre-built drum patterns for different musical styles",
+      "implementation": "Load patterns from catalog, trigger samples using Polyphonica engine",
+      "gui_controls": ["pattern_selector", "tempo_control", "fill_options"]
+    },
+    "dynamic_patterns": {
+      "description": "Real-time pattern generation based on chord progressions",
+      "implementation": "Algorithmic pattern creation using sample library",
+      "gui_controls": ["complexity_slider", "variation_control", "auto_fill_toggle"]
+    },
+    "multi_track_mixing": {
+      "description": "Separate volume controls for different drum elements",
+      "implementation": "Individual voice management in RealtimeEngine",
+      "gui_controls": ["kick_volume", "snare_volume", "hihat_volume", "cymbal_volume"]
+    },
+    "sample_kit_switching": {
+      "description": "Runtime switching between different drum kits",
+      "implementation": "Hot-swappable sample loading in DrumSampleManager",
+      "gui_controls": ["kit_selector", "sample_preview", "kit_mixing"]
+    }
+  }
+}

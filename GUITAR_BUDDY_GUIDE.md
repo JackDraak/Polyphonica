@@ -27,13 +27,21 @@ Support for common and complex time signatures:
 - **7/8** - Complex odd time
 
 #### Multiple Click Sounds
-Six distinct metronome click types to suit different preferences:
+Ten distinct metronome click types including both synthetic and real drum samples:
+
+**Synthetic Sounds:**
 - **Wood Block** - Sharp, percussive click (classic metronome sound)
 - **Digital Beep** - Clean sine wave tone
 - **Cowbell** - Metallic ring with sustain
-- **Rim Shot** - Sharp snare rim sound
-- **Subtle Tick** - Gentle high-frequency tick
 - **Electro Click** - Modern electronic click
+
+**Real Drum Samples:**
+- **Acoustic Kick** - Deep, natural kick drum sound
+- **Acoustic Snare** - Crisp snare drum with natural decay
+- **Hi-Hat Closed** - Sharp, closed hi-hat click
+- **Hi-Hat Open** - Sustained open hi-hat sound
+- **Rim Shot** - Snare rim shot with tight envelope
+- **Drum Stick** - Drumstick click using hi-hat sample
 
 #### Tempo Control
 - **Range**: 40-200 BPM with 1 BPM precision
@@ -65,14 +73,19 @@ Six distinct metronome click types to suit different preferences:
 - **Audio Engine**: Polyphonica real-time synthesis with zero allocations
 
 #### Click Sound Generation
-Each click type uses different waveforms and ADSR envelopes:
+Guitar Buddy supports both synthetic waveforms and real drum samples:
 
+**Synthetic Waveforms:**
 - **Wood Block**: White noise with sharp attack/decay
 - **Digital Beep**: Pure sine wave at 1000Hz
 - **Cowbell**: Square wave with medium sustain
-- **Rim Shot**: Pulse wave with very short decay
-- **Subtle Tick**: High-frequency triangle wave
 - **Electro Click**: Pulse wave with moderate decay
+
+**Real Drum Samples:**
+- **Acoustic Kit**: Professional-quality drum samples from `samples/drums/acoustic/kit_01/`
+- **Sample Loading**: Automatic fallback to synthetic sounds if samples unavailable
+- **Custom Envelopes**: Each sample uses optimized ADSR envelopes for metronome use
+- **44.1kHz Quality**: High-resolution audio for professional practice
 
 #### GUI Features
 - **Real-time Updates**: 10ms refresh rate for smooth operation
@@ -94,6 +107,10 @@ Each click type uses different waveforms and ADSR envelopes:
 - **Odd Time Practice**: Use 5/4, 7/8 for progressive music training
 - **Volume Adjustment**: Set click volume to blend with your playing
 - **Sound Selection**: Different clicks work better with different musical styles
+  - Acoustic samples for natural, organic practice
+  - Synthetic sounds for electronic/modern music
+  - Hi-hat sounds for subtle, unobtrusive timing
+  - Kick/snare for pronounced, driving beats
 
 #### Best Practices
 - **Start Slow**: Begin 10-20 BPM below comfortable tempo
@@ -138,9 +155,11 @@ Each click type uses different waveforms and ADSR envelopes:
 ### Technical Architecture for Phase 2
 
 #### Sample Integration
-- Polyphonica's sample-based synthesis for realistic drums
-- Piano sample libraries for authentic keyboard sounds
-- Bass sample modeling for natural bass tones
+- **Drum Sample Library**: Real acoustic drum samples integrated in Phase 1
+- **Expandable Sample System**: Support for multiple drum kits and styles
+- **Future Samples**: Piano sample libraries for authentic keyboard sounds
+- **Bass Integration**: Bass sample modeling for natural bass tones
+- **Hot-Swappable Kits**: Runtime switching between different drum sample sets
 
 #### Musical Intelligence
 - Chord progression analysis and generation
@@ -182,16 +201,46 @@ fn should_trigger_beat(&mut self) -> bool {
 }
 ```
 
+## Drum Sample System
+
+### Current Implementation (Phase 1)
+Guitar Buddy includes a comprehensive drum sample management system:
+
+#### Sample Loading
+- **Automatic Discovery**: Loads samples from `samples/drums/acoustic/kit_01/`
+- **Graceful Fallback**: Uses synthetic sounds if samples unavailable
+- **Format Support**: WAV files at various sample rates (auto-converted to 44.1kHz)
+- **Optimized Envelopes**: Custom ADSR settings for each drum type
+
+#### Available Samples
+- `drumkit-kick.wav` - Deep acoustic kick drum
+- `drumkit-snare.wav` - Crisp snare drum (mono)
+- `drumkit-hihat.wav` - Closed hi-hat (tight sound)
+- `drumkit-hihat-open.wav` - Open hi-hat (sustained)
+- `drumkit-hihat-lose.wav` - Loose hi-hat (medium decay)
+- `drumkit-hihat-vlose.wav` - Very loose hi-hat (long decay)
+- `drumkit-cymbol-splash.wav` - Splash cymbal
+- `drumkit-cymball-roll.wav` - Cymbal roll/crash
+
+#### Sample Catalog
+A complete catalog file (`drum_samples_catalog.json`) documents:
+- Sample specifications and recommended usage
+- Metronome mapping configurations
+- Pre-built drum patterns for Phase 2
+- Technical implementation details
+
 ## Development Status
 
 ### Phase 1 (Complete) ✅
-- [x] Advanced metronome with 6 click sounds
+- [x] Advanced metronome with 10 click sounds (4 synthetic + 6 real samples)
+- [x] Real drum sample integration with acoustic kit
 - [x] Multiple time signatures (4/4, 3/4, 6/8, 5/4, 7/8, etc.)
 - [x] Precise tempo control (40-200 BPM)
 - [x] Beat accenting and visualization
 - [x] Transport controls (start/stop/pause)
 - [x] Real-time parameter adjustment
-- [x] Professional audio quality
+- [x] Professional audio quality (44.1kHz samples)
+- [x] Drum sample catalog system for Phase 2 expansion
 
 ### Phase 2 (Planned) 🚧
 - [ ] Drum pattern library
