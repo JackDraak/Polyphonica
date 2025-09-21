@@ -41,6 +41,9 @@ enum Commands {
         /// Volume level (0.0-1.0)
         #[arg(short, long, default_value = "0.5")]
         volume: f32,
+        /// Duty cycle for pulse wave (0.0-1.0)
+        #[arg(long, default_value = "0.5")]
+        duty_cycle: f32,
     },
     /// Test ADSR envelope on a waveform
     Envelope {
@@ -77,6 +80,9 @@ enum Commands {
         /// Volume level (0.0-1.0)
         #[arg(short, long, default_value = "0.5")]
         volume: f32,
+        /// Duty cycle for pulse wave (0.0-1.0)
+        #[arg(long, default_value = "0.5")]
+        duty_cycle: f32,
     },
     /// Generate polyphonic composition with multiple voices
     Polyphonic {
@@ -203,6 +209,8 @@ enum WaveformArg {
     Square,
     Sawtooth,
     Triangle,
+    Pulse,
+    Noise,
 }
 
 #[derive(ValueEnum, Clone, Debug)]
@@ -223,14 +231,14 @@ struct IssueReport {
     library_version: String,
 }
 
-impl From<WaveformArg> for Waveform {
-    fn from(arg: WaveformArg) -> Self {
-        match arg {
-            WaveformArg::Sine => Waveform::Sine,
-            WaveformArg::Square => Waveform::Square,
-            WaveformArg::Sawtooth => Waveform::Sawtooth,
-            WaveformArg::Triangle => Waveform::Triangle,
-        }
+fn waveform_from_arg(arg: WaveformArg, duty_cycle: f32) -> Waveform {
+    match arg {
+        WaveformArg::Sine => Waveform::Sine,
+        WaveformArg::Square => Waveform::Square,
+        WaveformArg::Sawtooth => Waveform::Sawtooth,
+        WaveformArg::Triangle => Waveform::Triangle,
+        WaveformArg::Pulse => Waveform::Pulse { duty_cycle },
+        WaveformArg::Noise => Waveform::Noise,
     }
 }
 
@@ -459,11 +467,26 @@ fn run_test_suite(output_dir: &PathBuf, sample_rate: u32, play: bool, volume: f3
 
     // Test 1: All waveforms
     println!("Testing individual waveforms...");
-    let waveforms = [Waveform::Sine, Waveform::Square, Waveform::Sawtooth, Waveform::Triangle];
+    let waveforms = [
+        Waveform::Sine,
+        Waveform::Square,
+        Waveform::Sawtooth,
+        Waveform::Triangle,
+        Waveform::Pulse { duty_cycle: 0.5 },
+        Waveform::Noise
+    ];
 
     for waveform in &waveforms {
         let samples = generate_wave(waveform.clone(), 440.0, 1.0, sample_rate);
-        let filename = format!("{:?}_440hz.wav", waveform).to_lowercase();
+        let filename = match waveform {
+            Waveform::Sine => "sine_440hz.wav".to_string(),
+            Waveform::Square => "square_440hz.wav".to_string(),
+            Waveform::Sawtooth => "sawtooth_440hz.wav".to_string(),
+            Waveform::Triangle => "triangle_440hz.wav".to_string(),
+            Waveform::Pulse { duty_cycle } => format!("pulse_{:.0}pct_440hz.wav", duty_cycle * 100.0),
+            Waveform::Noise => "noise_440hz.wav".to_string(),
+            Waveform::Sample(_) => "sample_440hz.wav".to_string(),
+        };
         write_wav_file(&samples, sample_rate, &output_dir.join(filename))?;
     }
 
@@ -572,9 +595,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Generate { waveform, frequency, duration, sample_rate, output, play, volume } => {
+        Commands::Generate { waveform, frequency, duration, sample_rate, output, play, volume, duty_cycle } => {
             println!("Generating {:?} wave at {:.1}Hz for {:.1}s", waveform, frequency, duration);
-            let samples = generate_wave(waveform.into(), frequency, duration, sample_rate);
+            let wave = waveform_from_arg(waveform, duty_cycle);
+            let samples = generate_wave(wave, frequency, duration, sample_rate);
 
             write_wav_file(&samples, sample_rate, &output)?;
 
@@ -583,7 +607,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        Commands::Envelope { waveform, frequency, duration, attack, decay, sustain, release, sample_rate, output, play, volume } => {
+        Commands::Envelope { waveform, frequency, duration, attack, decay, sustain, release, sample_rate, output, play, volume, duty_cycle } => {
             println!("Testing ADSR envelope: A={:.2}s D={:.2}s S={:.2} R={:.2}s", attack, decay, sustain, release);
 
             let envelope = AdsrEnvelope {
@@ -594,7 +618,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             let event = SoundEvent {
-                waveform: waveform.into(),
+                waveform: waveform_from_arg(waveform, duty_cycle),
                 start_frequency: frequency,
                 end_frequency: frequency,
                 duration_secs: duration,

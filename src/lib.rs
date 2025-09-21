@@ -36,6 +36,20 @@ fn generate_sample(waveform: &Waveform, phase: f32, time_secs: f32, target_frequ
                 3.0 - 4.0 * normalized_phase
             }
         }
+        Waveform::Pulse { duty_cycle } => {
+            let normalized_phase = (phase / (2.0 * PI)) % 1.0;
+            if normalized_phase < *duty_cycle {
+                1.0
+            } else {
+                -1.0
+            }
+        }
+        Waveform::Noise => {
+            // Linear congruential generator for deterministic noise
+            let seed = ((time_secs * 1000.0) as u32).wrapping_mul(1103515245).wrapping_add(12345);
+            let noise = (seed % 32768) as f32 / 16384.0 - 1.0;
+            noise
+        }
         Waveform::Sample(sample_data) => {
             sample_data.get_sample_at_time(time_secs, target_frequency)
         }
@@ -48,6 +62,8 @@ pub enum Waveform {
     Square,
     Sawtooth,
     Triangle,
+    Pulse { duty_cycle: f32 },
+    Noise,
     Sample(SampleData),
 }
 
