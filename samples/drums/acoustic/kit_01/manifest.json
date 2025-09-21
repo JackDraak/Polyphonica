@@ -1,0 +1,55 @@
+{
+  "collection_id": "acoustic_kit_01",
+  "name": "Basic Acoustic Drum Kit",
+  "version": "1.0.0",
+  "description": "Single snare drum sample for testing and development",
+  "samples": [
+    {
+      "id": "snare_01",
+      "filename": "snare.wav",
+      "name": "Snare Drum",
+      "description": "Acoustic snare drum hit",
+      "base_frequency": 200.0,
+      "suggested_frequencies": [180.0, 200.0, 220.0, 250.0],
+      "duration_secs": 0.18,
+      "peak_amplitude": 0.85,
+      "rms_amplitude": 0.32,
+      "spectral_centroid": 2200.0,
+      "tags": ["snare", "acoustic", "bright", "punchy"],
+      "velocity_layer": "medium",
+      "sample_rate": 44100,
+      "bit_depth": 16,
+      "file_size_bytes": 16206,
+      "loop_points": null,
+      "recommended_envelope": {
+        "attack_secs": 0.001,
+        "decay_secs": 0.08,
+        "sustain_level": 0.2,
+        "release_secs": 0.4
+      }
+    }
+  ],
+  "relationships": {
+    "complementary": [],
+    "alternatives": [],
+    "components_of": null
+  },
+  "usage_examples": [
+    {
+      "name": "Basic Beat",
+      "description": "Simple snare hit pattern",
+      "pattern": [
+        {"sample_id": "snare_01", "time": 0.5, "velocity": 0.8},
+        {"sample_id": "snare_01", "time": 1.5, "velocity": 0.7}
+      ]
+    }
+  ],
+  "metadata": {
+    "recorded_by": "Test Engineer",
+    "recording_location": "Development Studio",
+    "microphones": ["SM57"],
+    "processing": "minimal processing",
+    "tempo_range": "80-140 BPM",
+    "genre_suitability": ["rock", "pop", "general"]
+  }
+}

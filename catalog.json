@@ -1,0 +1,96 @@
+{
+  "version": "1.0.0",
+  "updated": "2025-09-21T15:03:20.732075266+00:00",
+  "collections": [
+    {
+      "id": "acoustic_kit_01",
+      "name": "Basic Acoustic Drum Kit",
+      "description": "Single snare drum sample for testing and development",
+      "category": "drums",
+      "subcategory": "acoustic",
+      "path": "drums/acoustic/kit_01",
+      "tags": [
+        "bright",
+        "acoustic",
+        "snare",
+        "punchy"
+      ],
+      "bpm": null,
+      "key": null,
+      "quality_rating": 3.0,
+      "sample_count": 1,
+      "total_duration_secs": 0.18,
+      "created": "2025-09-21T15:03:20.731985688+00:00",
+      "curator": "auto_scan",
+      "license": "unknown",
+      "manifest": "drums/acoustic/kit_01/manifest.json"
+    }
+  ],
+  "categories": {
+    "melodic": {
+      "name": "Melodic Instruments",
+      "description": "Piano, guitar, synth, strings, and tonal instruments",
+      "subcategories": [
+        "piano",
+        "guitar",
+        "synth",
+        "strings",
+        "brass",
+        "woodwind"
+      ]
+    },
+    "fx": {
+      "name": "Sound Effects",
+      "description": "Ambient, noise, impact, transition effects",
+      "subcategories": [
+        "ambient",
+        "impact",
+        "sweep",
+        "glitch",
+        "noise"
+      ]
+    },
+    "drums": {
+      "name": "Drums & Percussion",
+      "description": "Kick, snare, hi-hat, toms, cymbals, and percussion",
+      "subcategories": [
+        "acoustic",
+        "electronic",
+        "ethnic",
+        "fx"
+      ]
+    }
+  },
+  "tags": {
+    "mood": [
+      "aggressive",
+      "mellow",
+      "dark",
+      "bright",
+      "mysterious",
+      "energetic"
+    ],
+    "tempo": [
+      "slow",
+      "medium",
+      "fast",
+      "variable"
+    ],
+    "style": [
+      "rock",
+      "jazz",
+      "electronic",
+      "hip-hop",
+      "classical",
+      "ambient"
+    ],
+    "production": [
+      "studio",
+      "live",
+      "vintage",
+      "modern",
+      "lo-fi",
+      "hi-fi"
+    ]
+  }
+}

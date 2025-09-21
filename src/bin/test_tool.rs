@@ -195,6 +195,71 @@ enum Commands {
         #[arg(short, long)]
         parameters: Option<String>,
     },
+    /// Sample catalog management
+    Catalog {
+        #[command(subcommand)]
+        action: CatalogAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum CatalogAction {
+    /// Scan directory and build catalog
+    Scan {
+        /// Directory to scan
+        directory: PathBuf,
+        /// Output catalog file
+        #[arg(short, long, default_value = "catalog.json")]
+        output: PathBuf,
+    },
+    /// List available categories
+    ListCategories,
+    /// List collections in a category
+    ListCollections {
+        /// Category to filter by
+        #[arg(short, long)]
+        category: Option<String>,
+        /// Show detailed information
+        #[arg(short, long)]
+        detailed: bool,
+    },
+    /// Show collection details
+    Show {
+        /// Collection ID
+        collection_id: String,
+        /// Catalog file to read
+        #[arg(short, long, default_value = "catalog.json")]
+        catalog: PathBuf,
+    },
+    /// Search collections by tags
+    Search {
+        /// Tags to search for (comma-separated)
+        #[arg(short, long)]
+        tags: Option<String>,
+        /// Category to filter by
+        #[arg(short, long)]
+        category: Option<String>,
+        /// Catalog file to read
+        #[arg(short, long, default_value = "catalog.json")]
+        catalog: PathBuf,
+    },
+    /// Audition a sample from the catalog
+    Audition {
+        /// Sample path (collection_id/sample_id)
+        sample_path: String,
+        /// Catalog file to read
+        #[arg(short, long, default_value = "catalog.json")]
+        catalog: PathBuf,
+        /// Play audio immediately
+        #[arg(short, long)]
+        play: bool,
+        /// Volume level (0.0-1.0)
+        #[arg(short, long, default_value = "0.5")]
+        volume: f32,
+        /// Test at suggested frequencies
+        #[arg(short, long)]
+        frequencies: bool,
+    },
 }
 
 #[derive(ValueEnum, Clone, Debug)]
@@ -568,6 +633,180 @@ fn report_issue(
     Ok(())
 }
 
+fn handle_catalog_command(action: CatalogAction) -> Result<(), Box<dyn std::error::Error>> {
+    match action {
+        CatalogAction::Scan { directory, output } => {
+            println!("Scanning directory: {}", directory.display());
+            let mut catalog = SampleCatalog::scan_directory(&directory)?;
+            catalog.save_to_file(&output)?;
+            println!("Catalog saved to: {}", output.display());
+            println!("Found {} collections", catalog.collections.len());
+        }
+
+        CatalogAction::ListCategories => {
+            let catalog = SampleCatalog::new();
+            println!("Available Categories:");
+            for (id, info) in &catalog.categories {
+                println!("  {}: {}", id, info.name);
+                println!("    {}", info.description);
+                println!("    Subcategories: {}", info.subcategories.join(", "));
+                println!();
+            }
+        }
+
+        CatalogAction::ListCollections { category, detailed } => {
+            let catalog = SampleCatalog::from_file("catalog.json")
+                .unwrap_or_else(|_| SampleCatalog::new());
+
+            let collections = if let Some(ref cat) = category {
+                catalog.search(None, Some(cat))
+            } else {
+                catalog.collections.iter().collect()
+            };
+
+            if collections.is_empty() {
+                println!("No collections found");
+                return Ok(());
+            }
+
+            println!("Collections{}:",
+                if let Some(ref cat) = category { format!(" in category '{}'", cat) } else { String::new() }
+            );
+
+            for collection in collections {
+                if detailed {
+                    println!("  {} ({})", collection.name, collection.id);
+                    println!("    Description: {}", collection.description);
+                    println!("    Category: {}/{}", collection.category, collection.subcategory);
+                    println!("    Samples: {}, Duration: {:.1}s", collection.sample_count, collection.total_duration_secs);
+                    println!("    Tags: {}", collection.tags.join(", "));
+                    println!("    Path: {}", collection.path.display());
+                } else {
+                    println!("  {} ({}): {} samples, {:.1}s",
+                        collection.name, collection.id, collection.sample_count, collection.total_duration_secs);
+                }
+                println!();
+            }
+        }
+
+        CatalogAction::Show { collection_id, catalog } => {
+            let sample_catalog = SampleCatalog::from_file(&catalog)?;
+
+            if let Some(collection) = sample_catalog.get_collection(&collection_id) {
+                println!("Collection: {} ({})", collection.name, collection.id);
+                println!("Description: {}", collection.description);
+                println!("Category: {}/{}", collection.category, collection.subcategory);
+                println!("Samples: {}, Total Duration: {:.1}s", collection.sample_count, collection.total_duration_secs);
+                println!("Tags: {}", collection.tags.join(", "));
+                println!("Quality Rating: {:.1}/5.0", collection.quality_rating);
+                println!("Path: {}", collection.path.display());
+
+                // Try to load and show manifest details
+                let manifest_path = PathBuf::from("samples").join(&collection.path).join("manifest.json");
+                if let Ok(manifest) = load_sample_manifest(&manifest_path) {
+                    println!("\nSamples:");
+                    for sample in &manifest.samples {
+                        println!("  {} ({})", sample.name, sample.id);
+                        println!("    File: {}", sample.filename);
+                        println!("    Base Frequency: {:.1}Hz", sample.base_frequency);
+                        println!("    Duration: {:.2}s", sample.duration_secs);
+                        println!("    Tags: {}", sample.tags.join(", "));
+                    }
+                }
+            } else {
+                println!("Collection '{}' not found", collection_id);
+            }
+        }
+
+        CatalogAction::Search { tags, category, catalog } => {
+            let sample_catalog = SampleCatalog::from_file(&catalog)?;
+
+            let search_tags = tags.as_ref().map(|t| {
+                t.split(',').map(|s| s.trim().to_string()).collect::<Vec<_>>()
+            });
+
+            let results = sample_catalog.search(
+                search_tags.as_ref().map(|v| v.as_slice()),
+                category.as_deref()
+            );
+
+            if results.is_empty() {
+                println!("No collections found matching criteria");
+            } else {
+                println!("Found {} collections:", results.len());
+                for collection in results {
+                    println!("  {} ({}): {} samples",
+                        collection.name, collection.id, collection.sample_count);
+                    println!("    Tags: {}", collection.tags.join(", "));
+                }
+            }
+        }
+
+        CatalogAction::Audition { sample_path, catalog, play, volume, frequencies } => {
+            let sample_catalog = SampleCatalog::from_file(&catalog)?;
+
+            let parts: Vec<&str> = sample_path.split('/').collect();
+            if parts.len() != 2 {
+                eprintln!("Sample path must be in format 'collection_id/sample_id'");
+                return Ok(());
+            }
+
+            let (collection_id, sample_id) = (parts[0], parts[1]);
+
+            if let Some(collection) = sample_catalog.get_collection(collection_id) {
+                let manifest_path = PathBuf::from("samples").join(&collection.path).join("manifest.json");
+                let manifest = load_sample_manifest(&manifest_path)?;
+
+                if let Some(sample_info) = manifest.samples.iter().find(|s| s.id == sample_id) {
+                    let sample_file_path = PathBuf::from("samples").join(&collection.path).join(&sample_info.filename);
+
+                    println!("Auditioning: {} from {}", sample_info.name, collection.name);
+                    println!("Base frequency: {:.1}Hz", sample_info.base_frequency);
+
+                    if frequencies && !sample_info.suggested_frequencies.is_empty() {
+                        println!("Testing suggested frequencies:");
+                        for freq in &sample_info.suggested_frequencies {
+                            println!("  Playing at {:.1}Hz...", freq);
+
+                            let sample_data = SampleData::from_file(&sample_file_path, sample_info.base_frequency)?;
+                            let waveform = Waveform::Sample(sample_data);
+                            let samples = generate_wave(waveform, *freq, 1.0, 44100);
+
+                            if play {
+                                play_audio(&samples, 44100, volume)?;
+                                std::thread::sleep(Duration::from_millis(500)); // Brief pause
+                            }
+                        }
+                    } else {
+                        let sample_data = SampleData::from_file(&sample_file_path, sample_info.base_frequency)?;
+                        let waveform = Waveform::Sample(sample_data);
+                        let samples = generate_wave(waveform, sample_info.base_frequency, 1.0, 44100);
+
+                        if play {
+                            play_audio(&samples, 44100, volume)?;
+                        }
+
+                        write_wav_file(&samples, 44100, &PathBuf::from("audition.wav"))?;
+                        println!("Sample saved to audition.wav");
+                    }
+                } else {
+                    println!("Sample '{}' not found in collection '{}'", sample_id, collection_id);
+                }
+            } else {
+                println!("Collection '{}' not found", collection_id);
+            }
+        }
+    }
+    Ok(())
+}
+
+// Helper function to load sample manifest
+fn load_sample_manifest<P: AsRef<std::path::Path>>(path: P) -> Result<SampleManifest, Box<dyn std::error::Error>> {
+    let content = std::fs::read_to_string(path)?;
+    let manifest: SampleManifest = serde_json::from_str(&content)?;
+    Ok(manifest)
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
@@ -706,6 +945,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         Commands::ReportIssue { description, expected, actual, parameters } => {
             report_issue(description, expected, actual, parameters)?;
+        }
+
+        Commands::Catalog { action } => {
+            handle_catalog_command(action)?;
         }
     }
 

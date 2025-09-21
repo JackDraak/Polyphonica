@@ -1,5 +1,7 @@
 use std::f32::consts::PI;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 
 fn validate_inputs(frequency: f32, duration_secs: f32, sample_rate: u32) -> Result<(), &'static str> {
     if frequency <= 0.0 || frequency > 20000.0 {
@@ -229,6 +231,337 @@ impl SampleData {
             let sample2 = self.samples[index + 1];
             sample1 + (sample2 - sample1) * fraction
         }
+    }
+}
+
+// Sample Catalog System
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SampleCatalog {
+    pub version: String,
+    pub updated: String,
+    pub collections: Vec<SampleCollection>,
+    pub categories: HashMap<String, CategoryInfo>,
+    pub tags: HashMap<String, Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SampleCollection {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub category: String,
+    pub subcategory: String,
+    pub path: PathBuf,
+    pub tags: Vec<String>,
+    pub bpm: Option<f32>,
+    pub key: Option<String>,
+    pub quality_rating: f32,
+    pub sample_count: usize,
+    pub total_duration_secs: f32,
+    pub created: String,
+    pub curator: String,
+    pub license: String,
+    pub manifest: PathBuf,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CategoryInfo {
+    pub name: String,
+    pub description: String,
+    pub subcategories: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SampleManifest {
+    pub collection_id: String,
+    pub name: String,
+    pub version: String,
+    pub description: String,
+    pub samples: Vec<SampleInfo>,
+    pub relationships: SampleRelationships,
+    pub usage_examples: Vec<UsagePattern>,
+    pub metadata: CollectionMetadata,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SampleInfo {
+    pub id: String,
+    pub filename: String,
+    pub name: String,
+    pub description: String,
+    pub base_frequency: f32,
+    pub suggested_frequencies: Vec<f32>,
+    pub duration_secs: f32,
+    pub peak_amplitude: f32,
+    pub rms_amplitude: f32,
+    pub spectral_centroid: f32,
+    pub tags: Vec<String>,
+    pub velocity_layer: Option<String>,
+    pub sample_rate: u32,
+    pub bit_depth: u16,
+    pub file_size_bytes: u64,
+    pub loop_points: Option<LoopPoints>,
+    pub recommended_envelope: EnvelopePreset,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoopPoints {
+    pub start: usize,
+    pub end: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnvelopePreset {
+    pub attack_secs: f32,
+    pub decay_secs: f32,
+    pub sustain_level: f32,
+    pub release_secs: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SampleRelationships {
+    pub complementary: Vec<String>,
+    pub alternatives: Vec<String>,
+    pub components_of: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UsagePattern {
+    pub name: String,
+    pub description: String,
+    pub pattern: Vec<PatternEvent>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PatternEvent {
+    pub sample_id: String,
+    pub time: f32,
+    pub velocity: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CollectionMetadata {
+    pub recorded_by: Option<String>,
+    pub recording_location: Option<String>,
+    pub microphones: Vec<String>,
+    pub processing: Option<String>,
+    pub tempo_range: Option<String>,
+    pub genre_suitability: Vec<String>,
+}
+
+impl SampleCatalog {
+    /// Create a new empty catalog
+    pub fn new() -> Self {
+        Self {
+            version: "1.0.0".to_string(),
+            updated: chrono::Utc::now().to_rfc3339(),
+            collections: Vec::new(),
+            categories: Self::default_categories(),
+            tags: Self::default_tags(),
+        }
+    }
+
+    /// Load catalog from JSON file
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
+        let content = std::fs::read_to_string(path)?;
+        let catalog: SampleCatalog = serde_json::from_str(&content)?;
+        Ok(catalog)
+    }
+
+    /// Save catalog to JSON file
+    pub fn save_to_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        self.updated = chrono::Utc::now().to_rfc3339();
+        let content = serde_json::to_string_pretty(self)?;
+        std::fs::write(path, content)?;
+        Ok(())
+    }
+
+    /// Scan directory for samples and build catalog
+    pub fn scan_directory<P: AsRef<Path>>(base_path: P) -> Result<Self, Box<dyn std::error::Error>> {
+        let mut catalog = Self::new();
+        let base_path = base_path.as_ref();
+
+        // Walk through directory structure
+        Self::scan_recursive(&mut catalog, base_path, base_path)?;
+
+        Ok(catalog)
+    }
+
+    fn scan_recursive(
+        catalog: &mut SampleCatalog,
+        current_path: &Path,
+        base_path: &Path,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        if !current_path.is_dir() {
+            return Ok(());
+        }
+
+        for entry in std::fs::read_dir(current_path)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if path.is_dir() {
+                // Check if this directory contains a manifest
+                let manifest_path = path.join("manifest.json");
+                if manifest_path.exists() {
+                    // This is a sample collection
+                    if let Ok(collection) = Self::scan_collection(&path, base_path) {
+                        catalog.collections.push(collection);
+                    }
+                } else {
+                    // Recurse into subdirectory
+                    Self::scan_recursive(catalog, &path, base_path)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn scan_collection(
+        collection_path: &Path,
+        base_path: &Path,
+    ) -> Result<SampleCollection, Box<dyn std::error::Error>> {
+        let manifest_path = collection_path.join("manifest.json");
+        let manifest: SampleManifest = {
+            let content = std::fs::read_to_string(&manifest_path)?;
+            serde_json::from_str(&content)?
+        };
+
+        let relative_path = collection_path.strip_prefix(base_path)
+            .unwrap_or(collection_path)
+            .to_path_buf();
+
+        // Analyze path to determine category/subcategory
+        let (category, subcategory) = Self::categorize_from_path(&relative_path);
+
+        let total_duration = manifest.samples.iter()
+            .map(|s| s.duration_secs)
+            .sum();
+
+        Ok(SampleCollection {
+            id: manifest.collection_id.clone(),
+            name: manifest.name.clone(),
+            description: manifest.description.clone(),
+            category,
+            subcategory,
+            path: relative_path,
+            tags: manifest.samples.iter()
+                .flat_map(|s| s.tags.iter())
+                .cloned()
+                .collect::<std::collections::HashSet<_>>()
+                .into_iter()
+                .collect(),
+            bpm: None, // Could be extracted from metadata
+            key: None,
+            quality_rating: 3.0, // Default rating
+            sample_count: manifest.samples.len(),
+            total_duration_secs: total_duration,
+            created: chrono::Utc::now().to_rfc3339(),
+            curator: "auto_scan".to_string(),
+            license: "unknown".to_string(),
+            manifest: manifest_path.strip_prefix(base_path)
+                .unwrap_or(&manifest_path)
+                .to_path_buf(),
+        })
+    }
+
+    fn categorize_from_path(path: &Path) -> (String, String) {
+        let components: Vec<&str> = path.components()
+            .filter_map(|c| c.as_os_str().to_str())
+            .collect();
+
+        if components.is_empty() {
+            return ("unknown".to_string(), "unknown".to_string());
+        }
+
+        let category = components[0].to_string();
+        let subcategory = if components.len() > 1 {
+            components[1].to_string()
+        } else {
+            "general".to_string()
+        };
+
+        (category, subcategory)
+    }
+
+    fn default_categories() -> HashMap<String, CategoryInfo> {
+        let mut categories = HashMap::new();
+
+        categories.insert("drums".to_string(), CategoryInfo {
+            name: "Drums & Percussion".to_string(),
+            description: "Kick, snare, hi-hat, toms, cymbals, and percussion".to_string(),
+            subcategories: vec!["acoustic".to_string(), "electronic".to_string(), "ethnic".to_string(), "fx".to_string()],
+        });
+
+        categories.insert("melodic".to_string(), CategoryInfo {
+            name: "Melodic Instruments".to_string(),
+            description: "Piano, guitar, synth, strings, and tonal instruments".to_string(),
+            subcategories: vec!["piano".to_string(), "guitar".to_string(), "synth".to_string(), "strings".to_string(), "brass".to_string(), "woodwind".to_string()],
+        });
+
+        categories.insert("fx".to_string(), CategoryInfo {
+            name: "Sound Effects".to_string(),
+            description: "Ambient, noise, impact, transition effects".to_string(),
+            subcategories: vec!["ambient".to_string(), "impact".to_string(), "sweep".to_string(), "glitch".to_string(), "noise".to_string()],
+        });
+
+        categories
+    }
+
+    fn default_tags() -> HashMap<String, Vec<String>> {
+        let mut tags = HashMap::new();
+
+        tags.insert("style".to_string(), vec![
+            "rock".to_string(), "jazz".to_string(), "electronic".to_string(),
+            "hip-hop".to_string(), "classical".to_string(), "ambient".to_string()
+        ]);
+
+        tags.insert("mood".to_string(), vec![
+            "aggressive".to_string(), "mellow".to_string(), "dark".to_string(),
+            "bright".to_string(), "mysterious".to_string(), "energetic".to_string()
+        ]);
+
+        tags.insert("production".to_string(), vec![
+            "studio".to_string(), "live".to_string(), "vintage".to_string(),
+            "modern".to_string(), "lo-fi".to_string(), "hi-fi".to_string()
+        ]);
+
+        tags.insert("tempo".to_string(), vec![
+            "slow".to_string(), "medium".to_string(), "fast".to_string(), "variable".to_string()
+        ]);
+
+        tags
+    }
+
+    /// Search collections by tags and category
+    pub fn search(&self, tags: Option<&[String]>, category: Option<&str>) -> Vec<&SampleCollection> {
+        self.collections.iter()
+            .filter(|collection| {
+                // Filter by category if specified
+                if let Some(cat) = category {
+                    if collection.category != cat {
+                        return false;
+                    }
+                }
+
+                // Filter by tags if specified
+                if let Some(search_tags) = tags {
+                    for tag in search_tags {
+                        if !collection.tags.contains(tag) {
+                            return false;
+                        }
+                    }
+                }
+
+                true
+            })
+            .collect()
+    }
+
+    /// Get collection by ID
+    pub fn get_collection(&self, id: &str) -> Option<&SampleCollection> {
+        self.collections.iter().find(|c| c.id == id)
     }
 }
 
