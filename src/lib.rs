@@ -1,5 +1,7 @@
 use std::f32::consts::PI;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::Arc;
 
 fn validate_inputs(frequency: f32, duration_secs: f32, sample_rate: u32) -> Result<(), &'static str> {
     if frequency <= 0.0 || frequency > 20000.0 {
@@ -408,6 +410,451 @@ pub fn render_timeline(
     }
 
     master_buffer
+}
+
+// ============================================================================
+// REAL-TIME ENGINE MODULE
+// ============================================================================
+
+/// Maximum number of simultaneous voices for polyphonic playback
+pub const MAX_VOICES: usize = 32;
+
+/// Atomic f32 wrapper for lock-free parameter updates
+#[derive(Debug)]
+pub struct AtomicF32 {
+    bits: AtomicU32,
+}
+
+impl AtomicF32 {
+    pub fn new(value: f32) -> Self {
+        AtomicF32 {
+            bits: AtomicU32::new(value.to_bits()),
+        }
+    }
+
+    pub fn load(&self, ordering: Ordering) -> f32 {
+        f32::from_bits(self.bits.load(ordering))
+    }
+
+    pub fn store(&self, value: f32, ordering: Ordering) {
+        self.bits.store(value.to_bits(), ordering);
+    }
+}
+
+/// Real-time voice state for polyphonic synthesis
+#[derive(Debug)]
+pub struct Voice {
+    /// Current waveform for this voice
+    pub waveform: Waveform,
+    /// Current oscillator phase (0.0 to 2π)
+    pub phase: f32,
+    /// Current frequency in Hz
+    pub frequency: f32,
+    /// Target frequency for sweeps
+    pub target_frequency: f32,
+    /// Voice amplitude (0.0 to 1.0)
+    pub amplitude: f32,
+    /// Current envelope state
+    pub envelope_state: EnvelopeState,
+    /// ADSR envelope parameters
+    pub envelope: AdsrEnvelope,
+    /// Voice is active and should generate audio
+    pub active: AtomicBool,
+    /// Voice ID for tracking
+    pub voice_id: u32,
+    /// Sample time offset for samples
+    pub sample_time: f32,
+}
+
+/// Current state within ADSR envelope
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum EnvelopePhase {
+    Attack,
+    Decay,
+    Sustain,
+    Release,
+    Finished,
+}
+
+/// Running envelope state for real-time processing
+#[derive(Debug, Clone)]
+pub struct EnvelopeState {
+    pub phase: EnvelopePhase,
+    pub phase_time: f32,
+    pub current_level: f32,
+    pub release_level: f32, // Level when release was triggered
+}
+
+impl EnvelopeState {
+    pub fn new() -> Self {
+        EnvelopeState {
+            phase: EnvelopePhase::Attack,
+            phase_time: 0.0,
+            current_level: 0.0,
+            release_level: 0.0,
+        }
+    }
+
+    /// Update envelope state and return current amplitude
+    pub fn update(&mut self, envelope: &AdsrEnvelope, dt: f32, note_released: bool) -> f32 {
+        // Handle release trigger
+        if note_released && self.phase != EnvelopePhase::Release && self.phase != EnvelopePhase::Finished {
+            self.phase = EnvelopePhase::Release;
+            self.phase_time = 0.0;
+            self.release_level = self.current_level;
+        }
+
+        self.phase_time += dt;
+
+        match self.phase {
+            EnvelopePhase::Attack => {
+                if envelope.attack_secs <= 0.0 {
+                    self.current_level = 1.0;
+                    self.phase = EnvelopePhase::Decay;
+                    self.phase_time = 0.0;
+                } else if self.phase_time >= envelope.attack_secs {
+                    self.current_level = 1.0;
+                    self.phase = EnvelopePhase::Decay;
+                    self.phase_time = 0.0;
+                } else {
+                    self.current_level = self.phase_time / envelope.attack_secs;
+                }
+            }
+            EnvelopePhase::Decay => {
+                if envelope.decay_secs <= 0.0 {
+                    self.current_level = envelope.sustain_level;
+                    self.phase = EnvelopePhase::Sustain;
+                    self.phase_time = 0.0;
+                } else if self.phase_time >= envelope.decay_secs {
+                    self.current_level = envelope.sustain_level;
+                    self.phase = EnvelopePhase::Sustain;
+                    self.phase_time = 0.0;
+                } else {
+                    let progress = self.phase_time / envelope.decay_secs;
+                    self.current_level = 1.0 - progress * (1.0 - envelope.sustain_level);
+                }
+            }
+            EnvelopePhase::Sustain => {
+                self.current_level = envelope.sustain_level;
+                // Stay in sustain until note is released
+            }
+            EnvelopePhase::Release => {
+                if envelope.release_secs <= 0.0 {
+                    self.current_level = 0.0;
+                    self.phase = EnvelopePhase::Finished;
+                } else if self.phase_time >= envelope.release_secs {
+                    self.current_level = 0.0;
+                    self.phase = EnvelopePhase::Finished;
+                } else {
+                    let progress = self.phase_time / envelope.release_secs;
+                    self.current_level = self.release_level * (1.0 - progress);
+                }
+            }
+            EnvelopePhase::Finished => {
+                self.current_level = 0.0;
+            }
+        }
+
+        self.current_level.clamp(0.0, 1.0)
+    }
+
+    pub fn is_finished(&self) -> bool {
+        self.phase == EnvelopePhase::Finished
+    }
+
+    /// Trigger note release
+    pub fn release(&mut self) {
+        if self.phase != EnvelopePhase::Release && self.phase != EnvelopePhase::Finished {
+            self.phase = EnvelopePhase::Release;
+            self.phase_time = 0.0;
+            self.release_level = self.current_level;
+        }
+    }
+}
+
+impl Voice {
+    pub fn new(voice_id: u32) -> Self {
+        Voice {
+            waveform: Waveform::Sine,
+            phase: 0.0,
+            frequency: 440.0,
+            target_frequency: 440.0,
+            amplitude: 1.0,
+            envelope_state: EnvelopeState::new(),
+            envelope: AdsrEnvelope {
+                attack_secs: 0.1,
+                decay_secs: 0.1,
+                sustain_level: 0.7,
+                release_secs: 0.3,
+            },
+            active: AtomicBool::new(false),
+            voice_id,
+            sample_time: 0.0,
+        }
+    }
+
+    /// Reset voice to inactive state
+    pub fn reset(&mut self) {
+        self.active.store(false, Ordering::Relaxed);
+        self.phase = 0.0;
+        self.sample_time = 0.0;
+        self.envelope_state = EnvelopeState::new();
+    }
+
+    /// Trigger a note with the given parameters
+    pub fn trigger_note(&mut self, waveform: Waveform, frequency: f32, envelope: AdsrEnvelope) {
+        self.waveform = waveform;
+        self.frequency = frequency;
+        self.target_frequency = frequency;
+        self.envelope = envelope;
+        self.envelope_state = EnvelopeState::new();
+        self.phase = 0.0;
+        self.sample_time = 0.0;
+        self.active.store(true, Ordering::Relaxed);
+    }
+
+    /// Release the current note
+    pub fn release_note(&mut self) {
+        self.envelope_state.release();
+    }
+
+    /// Generate the next audio sample
+    pub fn process_sample(&mut self, sample_rate: f32) -> f32 {
+        if !self.active.load(Ordering::Relaxed) {
+            return 0.0;
+        }
+
+        let dt = 1.0 / sample_rate;
+
+        // Update envelope
+        let envelope_amplitude = self.envelope_state.update(&self.envelope, dt, false);
+
+        // If envelope is finished, deactivate voice
+        if self.envelope_state.is_finished() {
+            self.active.store(false, Ordering::Relaxed);
+            return 0.0;
+        }
+
+        // Generate waveform sample
+        let waveform_sample = generate_sample(&self.waveform, self.phase, self.sample_time, self.frequency);
+
+        // Update phase for next sample
+        self.phase += 2.0 * PI * self.frequency / sample_rate;
+        self.phase = self.phase % (2.0 * PI);
+
+        // Update sample time for sample-based waveforms
+        self.sample_time += dt;
+
+        // Apply envelope and amplitude
+        waveform_sample * envelope_amplitude * self.amplitude
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.active.load(Ordering::Relaxed)
+    }
+}
+
+impl Clone for Voice {
+    fn clone(&self) -> Self {
+        Voice {
+            waveform: self.waveform.clone(),
+            phase: self.phase,
+            frequency: self.frequency,
+            target_frequency: self.target_frequency,
+            amplitude: self.amplitude,
+            envelope_state: self.envelope_state.clone(),
+            envelope: self.envelope.clone(),
+            active: AtomicBool::new(self.active.load(Ordering::Relaxed)),
+            voice_id: self.voice_id,
+            sample_time: self.sample_time,
+        }
+    }
+}
+
+/// Real-time polyphonic synthesis engine
+pub struct RealtimeEngine {
+    /// Voice pool for polyphonic synthesis
+    voices: [Voice; MAX_VOICES],
+    /// Master volume (0.0 to 1.0)
+    master_volume: AtomicF32,
+    /// Current sample rate
+    sample_rate: f32,
+    /// Next voice ID for allocation
+    next_voice_id: u32,
+}
+
+impl RealtimeEngine {
+    /// Create a new real-time synthesis engine
+    pub fn new(sample_rate: f32) -> Self {
+        // Initialize voice array
+        let mut voices = Vec::with_capacity(MAX_VOICES);
+        for i in 0..MAX_VOICES {
+            voices.push(Voice::new(i as u32));
+        }
+
+        // Convert to fixed-size array
+        let voices: [Voice; MAX_VOICES] = voices.try_into().unwrap();
+
+        RealtimeEngine {
+            voices,
+            master_volume: AtomicF32::new(1.0),
+            sample_rate,
+            next_voice_id: 0,
+        }
+    }
+
+    /// Set the sample rate (call this when audio device sample rate changes)
+    pub fn set_sample_rate(&mut self, sample_rate: f32) {
+        self.sample_rate = sample_rate;
+    }
+
+    /// Set master volume (0.0 to 1.0)
+    pub fn set_master_volume(&self, volume: f32) {
+        self.master_volume.store(volume.clamp(0.0, 1.0), Ordering::Relaxed);
+    }
+
+    /// Get current master volume
+    pub fn get_master_volume(&self) -> f32 {
+        self.master_volume.load(Ordering::Relaxed)
+    }
+
+    /// Trigger a new note (finds an available voice)
+    pub fn trigger_note(&mut self, waveform: Waveform, frequency: f32, envelope: AdsrEnvelope) -> Option<u32> {
+        // First, try to find an inactive voice
+        for voice in &mut self.voices {
+            if !voice.is_active() {
+                voice.trigger_note(waveform, frequency, envelope);
+                self.next_voice_id += 1;
+                voice.voice_id = self.next_voice_id;
+                return Some(voice.voice_id);
+            }
+        }
+
+        // If no inactive voice found, steal the oldest voice (voice stealing)
+        if let Some(oldest_voice) = self.voices.iter_mut().min_by_key(|v| v.voice_id) {
+            oldest_voice.trigger_note(waveform, frequency, envelope);
+            self.next_voice_id += 1;
+            oldest_voice.voice_id = self.next_voice_id;
+            Some(oldest_voice.voice_id)
+        } else {
+            None
+        }
+    }
+
+    /// Release a specific note by voice ID
+    pub fn release_note(&mut self, voice_id: u32) {
+        for voice in &mut self.voices {
+            if voice.voice_id == voice_id && voice.is_active() {
+                voice.release_note();
+                break;
+            }
+        }
+    }
+
+    /// Release all currently active notes
+    pub fn release_all_notes(&mut self) {
+        for voice in &mut self.voices {
+            if voice.is_active() {
+                voice.release_note();
+            }
+        }
+    }
+
+    /// Stop all notes immediately (for panic button)
+    pub fn stop_all_notes(&mut self) {
+        for voice in &mut self.voices {
+            voice.reset();
+        }
+    }
+
+    /// Get number of currently active voices
+    pub fn get_active_voice_count(&self) -> usize {
+        self.voices.iter().filter(|v| v.is_active()).count()
+    }
+
+    /// Process a buffer of audio samples (CPAL-compatible interface)
+    pub fn process_buffer(&mut self, output: &mut [f32]) {
+        let master_vol = self.master_volume.load(Ordering::Relaxed);
+
+        for sample in output.iter_mut() {
+            let mut mixed_sample = 0.0;
+
+            // Mix all active voices
+            for voice in &mut self.voices {
+                if voice.is_active() {
+                    mixed_sample += voice.process_sample(self.sample_rate);
+                }
+            }
+
+            // Apply master volume and clipping prevention
+            *sample = (mixed_sample * master_vol).clamp(-1.0, 1.0);
+        }
+    }
+
+    /// Process interleaved stereo buffer (common CPAL format)
+    pub fn process_stereo_buffer(&mut self, output: &mut [f32]) {
+        assert!(output.len() % 2 == 0, "Stereo buffer must have even length");
+
+        let master_vol = self.master_volume.load(Ordering::Relaxed);
+
+        for chunk in output.chunks_exact_mut(2) {
+            let mut mixed_sample = 0.0;
+
+            // Mix all active voices
+            for voice in &mut self.voices {
+                if voice.is_active() {
+                    mixed_sample += voice.process_sample(self.sample_rate);
+                }
+            }
+
+            // Apply master volume and clipping prevention
+            let final_sample = (mixed_sample * master_vol).clamp(-1.0, 1.0);
+
+            // Copy mono signal to both stereo channels
+            chunk[0] = final_sample; // Left
+            chunk[1] = final_sample; // Right
+        }
+    }
+
+    /// Convenience method for triggering multiple notes at once (chords)
+    pub fn trigger_chord(&mut self, notes: &[(Waveform, f32)], envelope: AdsrEnvelope) -> Vec<u32> {
+        let mut voice_ids = Vec::new();
+        for (waveform, frequency) in notes {
+            if let Some(voice_id) = self.trigger_note(waveform.clone(), *frequency, envelope.clone()) {
+                voice_ids.push(voice_id);
+            }
+        }
+        voice_ids
+    }
+
+    /// Update voice parameters for real-time modulation
+    pub fn set_voice_frequency(&mut self, voice_id: u32, frequency: f32) {
+        for voice in &mut self.voices {
+            if voice.voice_id == voice_id && voice.is_active() {
+                voice.frequency = frequency;
+                break;
+            }
+        }
+    }
+
+    /// Set voice amplitude for real-time volume control
+    pub fn set_voice_amplitude(&mut self, voice_id: u32, amplitude: f32) {
+        for voice in &mut self.voices {
+            if voice.voice_id == voice_id && voice.is_active() {
+                voice.amplitude = amplitude.clamp(0.0, 1.0);
+                break;
+            }
+        }
+    }
+}
+
+// Thread-safe wrapper for shared access
+pub type SharedRealtimeEngine = Arc<std::sync::Mutex<RealtimeEngine>>;
+
+impl Default for RealtimeEngine {
+    fn default() -> Self {
+        Self::new(44100.0)
+    }
 }
 
 #[cfg(test)]
@@ -1278,6 +1725,461 @@ mod tests {
         // Verify we get reasonable values
         for sample in &generated {
             assert!(*sample >= -1.1 && *sample <= 1.1); // Allow some interpolation error
+        }
+    }
+
+    // ======================================================================
+    // REAL-TIME ENGINE TESTS
+    // ======================================================================
+
+    #[test]
+    fn test_realtime_engine_creation() {
+        let engine = RealtimeEngine::new(44100.0);
+        assert_eq!(engine.sample_rate, 44100.0);
+        assert_eq!(engine.get_active_voice_count(), 0);
+        assert!((engine.get_master_volume() - 1.0).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn test_atomic_f32() {
+        let atomic = AtomicF32::new(42.5);
+        assert!((atomic.load(Ordering::Relaxed) - 42.5).abs() < TOLERANCE);
+
+        atomic.store(17.25, Ordering::Relaxed);
+        assert!((atomic.load(Ordering::Relaxed) - 17.25).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn test_envelope_state_attack_phase() {
+        let mut envelope_state = EnvelopeState::new();
+        let envelope = AdsrEnvelope {
+            attack_secs: 0.1,
+            decay_secs: 0.1,
+            sustain_level: 0.7,
+            release_secs: 0.2,
+        };
+
+        // At start, should be in attack phase
+        assert_eq!(envelope_state.phase, EnvelopePhase::Attack);
+        assert!((envelope_state.current_level - 0.0).abs() < TOLERANCE);
+
+        // Halfway through attack
+        let level = envelope_state.update(&envelope, 0.05, false);
+        assert_eq!(envelope_state.phase, EnvelopePhase::Attack);
+        assert!((level - 0.5).abs() < 0.1);
+
+        // End of attack
+        envelope_state.update(&envelope, 0.05, false);
+        assert_eq!(envelope_state.phase, EnvelopePhase::Decay);
+        assert!((envelope_state.current_level - 1.0).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn test_envelope_state_full_cycle() {
+        let mut envelope_state = EnvelopeState::new();
+        let envelope = AdsrEnvelope {
+            attack_secs: 0.1,
+            decay_secs: 0.1,
+            sustain_level: 0.6,
+            release_secs: 0.1,
+        };
+
+        let dt = 0.01; // 10ms steps
+
+        // Attack phase
+        for _ in 0..11 {  // Need one extra step to fully complete attack
+            envelope_state.update(&envelope, dt, false);
+        }
+        assert_eq!(envelope_state.phase, EnvelopePhase::Decay);
+
+        // Decay phase
+        for _ in 0..11 {  // Need one extra step to fully complete decay
+            envelope_state.update(&envelope, dt, false);
+        }
+        assert_eq!(envelope_state.phase, EnvelopePhase::Sustain);
+        assert!((envelope_state.current_level - 0.6).abs() < 0.1);
+
+        // Sustain phase (should stay at sustain level)
+        for _ in 0..10 {
+            let level = envelope_state.update(&envelope, dt, false);
+            assert!((level - 0.6).abs() < 0.1);
+        }
+        assert_eq!(envelope_state.phase, EnvelopePhase::Sustain);
+
+        // Trigger release
+        envelope_state.release();
+        assert_eq!(envelope_state.phase, EnvelopePhase::Release);
+
+        // Release phase
+        for _ in 0..11 {  // Need one extra step to fully complete release
+            envelope_state.update(&envelope, dt, false);
+        }
+        assert_eq!(envelope_state.phase, EnvelopePhase::Finished);
+        assert!(envelope_state.is_finished());
+        assert!((envelope_state.current_level - 0.0).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn test_voice_lifecycle() {
+        let mut voice = Voice::new(0);
+        assert!(!voice.is_active());
+
+        let envelope = AdsrEnvelope {
+            attack_secs: 0.01,
+            decay_secs: 0.01,
+            sustain_level: 0.8,
+            release_secs: 0.01,
+        };
+
+        // Trigger a note
+        voice.trigger_note(Waveform::Sine, 440.0, envelope);
+        assert!(voice.is_active());
+        assert_eq!(voice.frequency, 440.0);
+        assert_eq!(voice.envelope_state.phase, EnvelopePhase::Attack);
+
+        // Process some samples
+        let sample_rate = 44100.0;
+        for _ in 0..100 {
+            let sample = voice.process_sample(sample_rate);
+            // Should be producing audio
+            if voice.is_active() {
+                // Sample might be near zero due to envelope attack, but should be valid
+                assert!(!sample.is_nan());
+                assert!(sample >= -1.0 && sample <= 1.0);
+            }
+        }
+
+        // Release the note
+        voice.release_note();
+        assert_eq!(voice.envelope_state.phase, EnvelopePhase::Release);
+
+        // Process until voice becomes inactive
+        let mut iterations = 0;
+        while voice.is_active() && iterations < 1000 {
+            voice.process_sample(sample_rate);
+            iterations += 1;
+        }
+        assert!(!voice.is_active());
+    }
+
+    #[test]
+    fn test_realtime_engine_single_note() {
+        let mut engine = RealtimeEngine::new(44100.0);
+
+        let envelope = AdsrEnvelope {
+            attack_secs: 0.01,
+            decay_secs: 0.01,
+            sustain_level: 0.8,
+            release_secs: 0.01,
+        };
+
+        // Trigger a note
+        let voice_id = engine.trigger_note(Waveform::Sine, 440.0, envelope);
+        assert!(voice_id.is_some());
+        assert_eq!(engine.get_active_voice_count(), 1);
+
+        // Process a buffer
+        let mut buffer = vec![0.0; 1024];
+        engine.process_buffer(&mut buffer);
+
+        // Should have generated audio
+        let has_audio = buffer.iter().any(|&s| s.abs() > 0.01);
+        assert!(has_audio, "Engine should generate audio for active voice");
+
+        // All samples should be in valid range
+        for sample in &buffer {
+            assert!(*sample >= -1.0 && *sample <= 1.0);
+            assert!(!sample.is_nan());
+        }
+
+        // Release the note
+        engine.release_note(voice_id.unwrap());
+
+        // Process until voice becomes inactive
+        for _ in 0..100 {
+            engine.process_buffer(&mut buffer);
+            if engine.get_active_voice_count() == 0 {
+                break;
+            }
+        }
+        assert_eq!(engine.get_active_voice_count(), 0);
+    }
+
+    #[test]
+    fn test_realtime_engine_polyphonic() {
+        let mut engine = RealtimeEngine::new(44100.0);
+
+        let envelope = AdsrEnvelope {
+            attack_secs: 0.01,
+            decay_secs: 0.1,
+            sustain_level: 0.6,
+            release_secs: 0.1,
+        };
+
+        // Trigger multiple notes
+        let voice1 = engine.trigger_note(Waveform::Sine, 440.0, envelope.clone());
+        let voice2 = engine.trigger_note(Waveform::Square, 554.37, envelope.clone()); // C# above A
+        let voice3 = engine.trigger_note(Waveform::Sawtooth, 659.25, envelope.clone()); // E above A
+
+        assert!(voice1.is_some());
+        assert!(voice2.is_some());
+        assert!(voice3.is_some());
+        assert_eq!(engine.get_active_voice_count(), 3);
+
+        // Process a buffer
+        let mut buffer = vec![0.0; 1024];
+        engine.process_buffer(&mut buffer);
+
+        // Should have generated mixed audio
+        let has_audio = buffer.iter().any(|&s| s.abs() > 0.1);
+        assert!(has_audio, "Engine should generate mixed audio for multiple voices");
+
+        // Release all notes
+        engine.release_all_notes();
+
+        // Process until all voices become inactive
+        for _ in 0..200 {
+            engine.process_buffer(&mut buffer);
+            if engine.get_active_voice_count() == 0 {
+                break;
+            }
+        }
+        assert_eq!(engine.get_active_voice_count(), 0);
+    }
+
+    #[test]
+    fn test_realtime_engine_voice_stealing() {
+        let mut engine = RealtimeEngine::new(44100.0);
+
+        let envelope = AdsrEnvelope {
+            attack_secs: 0.01,
+            decay_secs: 0.5,
+            sustain_level: 0.8,
+            release_secs: 0.5,
+        };
+
+        // Fill all voices
+        let mut voice_ids = Vec::new();
+        for i in 0..MAX_VOICES {
+            let voice_id = engine.trigger_note(Waveform::Sine, 440.0 + i as f32, envelope.clone());
+            assert!(voice_id.is_some());
+            voice_ids.push(voice_id.unwrap());
+        }
+        assert_eq!(engine.get_active_voice_count(), MAX_VOICES);
+
+        // Trigger one more note (should steal oldest voice)
+        let extra_voice = engine.trigger_note(Waveform::Square, 880.0, envelope);
+        assert!(extra_voice.is_some());
+        assert_eq!(engine.get_active_voice_count(), MAX_VOICES); // Still at max
+
+        // Process some audio to ensure engine handles voice stealing correctly
+        let mut buffer = vec![0.0; 512];
+        engine.process_buffer(&mut buffer);
+
+        let has_audio = buffer.iter().any(|&s| s.abs() > 0.01);
+        assert!(has_audio, "Engine should still generate audio after voice stealing");
+    }
+
+    #[test]
+    fn test_realtime_engine_stereo_buffer() {
+        let mut engine = RealtimeEngine::new(44100.0);
+
+        let envelope = AdsrEnvelope {
+            attack_secs: 0.01,
+            decay_secs: 0.1,
+            sustain_level: 0.8,
+            release_secs: 0.1,
+        };
+
+        // Trigger a note
+        engine.trigger_note(Waveform::Sine, 440.0, envelope);
+
+        // Process stereo buffer
+        let mut stereo_buffer = vec![0.0; 1024]; // 512 stereo samples
+        engine.process_stereo_buffer(&mut stereo_buffer);
+
+        // Check that left and right channels are identical (mono signal)
+        for chunk in stereo_buffer.chunks_exact(2) {
+            assert!((chunk[0] - chunk[1]).abs() < TOLERANCE, "Left and right channels should be identical");
+        }
+
+        // Should have generated audio
+        let has_audio = stereo_buffer.iter().any(|&s| s.abs() > 0.01);
+        assert!(has_audio, "Engine should generate stereo audio");
+    }
+
+    #[test]
+    fn test_realtime_engine_master_volume() {
+        let mut engine = RealtimeEngine::new(44100.0);
+
+        let envelope = AdsrEnvelope {
+            attack_secs: 0.0,
+            decay_secs: 0.0,
+            sustain_level: 1.0,
+            release_secs: 0.0,
+        };
+
+        // Trigger a note
+        engine.trigger_note(Waveform::Sine, 440.0, envelope);
+
+        // Test with different master volumes
+        let mut buffer = vec![0.0; 512];
+
+        // Full volume
+        engine.set_master_volume(1.0);
+        engine.process_buffer(&mut buffer);
+        let max_amplitude_full = buffer.iter().map(|s| s.abs()).fold(0.0, f32::max);
+
+        // Half volume
+        engine.set_master_volume(0.5);
+        buffer.fill(0.0);
+        engine.process_buffer(&mut buffer);
+        let max_amplitude_half = buffer.iter().map(|s| s.abs()).fold(0.0, f32::max);
+
+        // Half volume should be roughly half the amplitude
+        assert!(max_amplitude_half < max_amplitude_full);
+        assert!((max_amplitude_half * 2.0 - max_amplitude_full).abs() < 0.1);
+
+        // Zero volume
+        engine.set_master_volume(0.0);
+        buffer.fill(0.0);
+        engine.process_buffer(&mut buffer);
+        let max_amplitude_zero = buffer.iter().map(|s| s.abs()).fold(0.0, f32::max);
+        assert!(max_amplitude_zero < 0.001, "Zero volume should produce silent output");
+    }
+
+    #[test]
+    fn test_realtime_engine_chord_trigger() {
+        let mut engine = RealtimeEngine::new(44100.0);
+
+        let envelope = AdsrEnvelope {
+            attack_secs: 0.01,
+            decay_secs: 0.1,
+            sustain_level: 0.7,
+            release_secs: 0.1,
+        };
+
+        // Trigger a C Major chord
+        let chord_notes = &[
+            (Waveform::Sine, 261.63),    // C
+            (Waveform::Sine, 329.63),    // E
+            (Waveform::Sine, 392.00),    // G
+        ];
+
+        let voice_ids = engine.trigger_chord(chord_notes, envelope);
+        assert_eq!(voice_ids.len(), 3);
+        assert_eq!(engine.get_active_voice_count(), 3);
+
+        // Process audio
+        let mut buffer = vec![0.0; 1024];
+        engine.process_buffer(&mut buffer);
+
+        // Should generate harmonic content
+        let has_audio = buffer.iter().any(|&s| s.abs() > 0.1);
+        assert!(has_audio, "Chord should generate audible audio");
+
+        // Release all notes
+        for voice_id in voice_ids {
+            engine.release_note(voice_id);
+        }
+    }
+
+    #[test]
+    fn test_realtime_engine_parameter_updates() {
+        let mut engine = RealtimeEngine::new(44100.0);
+
+        let envelope = AdsrEnvelope {
+            attack_secs: 0.01,
+            decay_secs: 0.5,
+            sustain_level: 0.8,
+            release_secs: 0.5,
+        };
+
+        // Trigger a note
+        let voice_id = engine.trigger_note(Waveform::Sine, 440.0, envelope).unwrap();
+
+        // Update voice frequency
+        engine.set_voice_frequency(voice_id, 880.0);
+
+        // Update voice amplitude
+        engine.set_voice_amplitude(voice_id, 0.3);
+
+        // Process some audio to ensure parameters are applied
+        let mut buffer = vec![0.0; 512];
+        engine.process_buffer(&mut buffer);
+
+        let has_audio = buffer.iter().any(|&s| s.abs() > 0.01);
+        assert!(has_audio, "Engine should generate audio with updated parameters");
+    }
+
+    #[test]
+    fn test_realtime_engine_panic_stop() {
+        let mut engine = RealtimeEngine::new(44100.0);
+
+        let envelope = AdsrEnvelope {
+            attack_secs: 0.01,
+            decay_secs: 1.0,
+            sustain_level: 0.8,
+            release_secs: 1.0,
+        };
+
+        // Trigger multiple notes
+        for i in 0..8 {
+            engine.trigger_note(Waveform::Sine, 440.0 + i as f32 * 100.0, envelope.clone());
+        }
+        assert_eq!(engine.get_active_voice_count(), 8);
+
+        // Panic stop
+        engine.stop_all_notes();
+        assert_eq!(engine.get_active_voice_count(), 0);
+
+        // Process buffer - should be silent
+        let mut buffer = vec![0.0; 1024];
+        engine.process_buffer(&mut buffer);
+
+        let max_amplitude = buffer.iter().map(|s| s.abs()).fold(0.0, f32::max);
+        assert!(max_amplitude < 0.001, "Panic stop should produce silence");
+    }
+
+    #[test]
+    fn test_realtime_engine_different_waveforms() {
+        let mut engine = RealtimeEngine::new(44100.0);
+
+        let envelope = AdsrEnvelope {
+            attack_secs: 0.0,
+            decay_secs: 0.0,
+            sustain_level: 1.0,
+            release_secs: 0.0,
+        };
+
+        // Test all waveform types
+        let waveforms = vec![
+            Waveform::Sine,
+            Waveform::Square,
+            Waveform::Sawtooth,
+            Waveform::Triangle,
+            Waveform::Pulse { duty_cycle: 0.5 },
+            Waveform::Noise,
+        ];
+
+        for waveform in waveforms {
+            engine.stop_all_notes(); // Clear previous
+
+            let voice_id = engine.trigger_note(waveform, 440.0, envelope.clone());
+            assert!(voice_id.is_some());
+
+            let mut buffer = vec![0.0; 256];
+            engine.process_buffer(&mut buffer);
+
+            // Each waveform should generate some audio
+            let has_audio = buffer.iter().any(|&s| s.abs() > 0.01);
+            assert!(has_audio, "Waveform should generate audio");
+
+            // All samples should be in valid range
+            for sample in &buffer {
+                assert!(*sample >= -1.0 && *sample <= 1.0);
+                assert!(!sample.is_nan());
+            }
         }
     }
 }
