@@ -1,4 +1,5 @@
 use std::f32::consts::PI;
+use std::path::Path;
 
 fn validate_inputs(frequency: f32, duration_secs: f32, sample_rate: u32) -> Result<(), &'static str> {
     if frequency <= 0.0 || frequency > 20000.0 {
@@ -13,7 +14,7 @@ fn validate_inputs(frequency: f32, duration_secs: f32, sample_rate: u32) -> Resu
     Ok(())
 }
 
-fn generate_sample(waveform: Waveform, phase: f32) -> f32 {
+fn generate_sample(waveform: &Waveform, phase: f32, time_secs: f32, target_frequency: f32) -> f32 {
     match waveform {
         Waveform::Sine => phase.sin(),
         Waveform::Square => {
@@ -35,15 +36,200 @@ fn generate_sample(waveform: Waveform, phase: f32) -> f32 {
                 3.0 - 4.0 * normalized_phase
             }
         }
+        Waveform::Sample(sample_data) => {
+            sample_data.get_sample_at_time(time_secs, target_frequency)
+        }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Waveform {
     Sine,
     Square,
     Sawtooth,
     Triangle,
+    Sample(SampleData),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SampleData {
+    pub samples: Vec<f32>,
+    pub sample_rate: u32,
+    pub base_frequency: f32,
+    pub loop_start: Option<usize>,
+    pub loop_end: Option<usize>,
+    pub metadata: SampleMetadata,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SampleMetadata {
+    pub filename: String,
+    pub duration_secs: f32,
+    pub channels: u16,
+    pub bits_per_sample: u16,
+}
+
+#[derive(Debug)]
+pub enum SampleError {
+    IoError(std::io::Error),
+    FormatError(String),
+    UnsupportedFormat(String),
+}
+
+impl std::fmt::Display for SampleError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SampleError::IoError(e) => write!(f, "IO error: {}", e),
+            SampleError::FormatError(msg) => write!(f, "Format error: {}", msg),
+            SampleError::UnsupportedFormat(msg) => write!(f, "Unsupported format: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for SampleError {}
+
+impl From<std::io::Error> for SampleError {
+    fn from(error: std::io::Error) -> Self {
+        SampleError::IoError(error)
+    }
+}
+
+impl From<hound::Error> for SampleError {
+    fn from(error: hound::Error) -> Self {
+        SampleError::FormatError(format!("WAV error: {}", error))
+    }
+}
+
+impl SampleData {
+    /// Load a WAV file as sample data
+    pub fn from_file<P: AsRef<Path>>(path: P, base_frequency: f32) -> Result<Self, SampleError> {
+        let path = path.as_ref();
+        let mut reader = hound::WavReader::open(path)?;
+
+        let spec = reader.spec();
+
+        // Validate format
+        if base_frequency <= 0.0 || base_frequency > 20000.0 {
+            return Err(SampleError::FormatError(
+                "Base frequency must be between 0 and 20000 Hz".to_string()
+            ));
+        }
+
+        // Read samples and convert to f32
+        let samples: Result<Vec<f32>, _> = match spec.sample_format {
+            hound::SampleFormat::Float => {
+                reader.samples::<f32>().collect()
+            }
+            hound::SampleFormat::Int => {
+                match spec.bits_per_sample {
+                    16 => reader.samples::<i16>()
+                        .map(|s| s.map(|sample| sample as f32 / i16::MAX as f32))
+                        .collect(),
+                    24 => reader.samples::<i32>()
+                        .map(|s| s.map(|sample| (sample >> 8) as f32 / i32::MAX as f32))
+                        .collect(),
+                    32 => reader.samples::<i32>()
+                        .map(|s| s.map(|sample| sample as f32 / i32::MAX as f32))
+                        .collect(),
+                    _ => return Err(SampleError::UnsupportedFormat(
+                        format!("Unsupported bit depth: {}", spec.bits_per_sample)
+                    )),
+                }
+            }
+        };
+
+        let mut samples = samples.map_err(|e| SampleError::FormatError(e.to_string()))?;
+
+        // Convert stereo to mono by averaging channels
+        if spec.channels == 2 {
+            let mono_samples: Vec<f32> = samples
+                .chunks_exact(2)
+                .map(|stereo| (stereo[0] + stereo[1]) / 2.0)
+                .collect();
+            samples = mono_samples;
+        } else if spec.channels > 2 {
+            return Err(SampleError::UnsupportedFormat(
+                format!("Unsupported channel count: {}", spec.channels)
+            ));
+        }
+
+        let duration_secs = samples.len() as f32 / spec.sample_rate as f32;
+
+        let metadata = SampleMetadata {
+            filename: path.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            duration_secs,
+            channels: spec.channels,
+            bits_per_sample: spec.bits_per_sample,
+        };
+
+        Ok(SampleData {
+            samples,
+            sample_rate: spec.sample_rate,
+            base_frequency,
+            loop_start: None,
+            loop_end: None,
+            metadata,
+        })
+    }
+
+    /// Add loop points to the sample for sustained playback
+    pub fn with_loop_points(mut self, start: usize, end: usize) -> Result<Self, SampleError> {
+        if start >= self.samples.len() || end >= self.samples.len() || start >= end {
+            return Err(SampleError::FormatError(
+                "Invalid loop points: must be within sample bounds and start < end".to_string()
+            ));
+        }
+
+        self.loop_start = Some(start);
+        self.loop_end = Some(end);
+        Ok(self)
+    }
+
+    /// Get a sample at a specific time position with pitch shifting
+    pub fn get_sample_at_time(&self, time_secs: f32, target_frequency: f32) -> f32 {
+        if self.samples.is_empty() {
+            return 0.0;
+        }
+
+        // Calculate playback speed based on frequency ratio
+        let speed_ratio = target_frequency / self.base_frequency;
+        let sample_pos = time_secs * self.sample_rate as f32 * speed_ratio;
+
+        // Handle looping
+        let (loop_start, loop_end) = match (self.loop_start, self.loop_end) {
+            (Some(start), Some(end)) => (start as f32, end as f32),
+            _ => (0.0, self.samples.len() as f32),
+        };
+
+        let effective_pos = if sample_pos >= loop_end {
+            // Loop back to start
+            let loop_length = loop_end - loop_start;
+            let overflow = sample_pos - loop_end;
+            loop_start + (overflow % loop_length)
+        } else {
+            sample_pos
+        };
+
+        // Bounds check
+        if effective_pos < 0.0 || effective_pos >= self.samples.len() as f32 {
+            return 0.0;
+        }
+
+        // Linear interpolation between samples
+        let index = effective_pos as usize;
+        let fraction = effective_pos - index as f32;
+
+        if index + 1 >= self.samples.len() {
+            self.samples[index]
+        } else {
+            let sample1 = self.samples[index];
+            let sample2 = self.samples[index + 1];
+            sample1 + (sample2 - sample1) * fraction
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -78,7 +264,7 @@ pub fn generate_wave(
     for i in 0..total_samples {
         let t = i as f32 / sample_rate as f32;
         let phase = 2.0 * PI * frequency * t;
-        let sample = generate_sample(waveform, phase);
+        let sample = generate_sample(&waveform, phase, t, frequency);
         samples.push(sample);
     }
 
@@ -153,7 +339,7 @@ pub fn render_event(event: &SoundEvent, sample_rate: u32) -> Vec<f32> {
             (event.end_frequency - event.start_frequency) * progress;
 
         let phase = 2.0 * PI * current_frequency * t;
-        let sample = generate_sample(event.waveform, phase);
+        let sample = generate_sample(&event.waveform, phase, t, current_frequency);
         samples.push(sample);
     }
 
@@ -277,7 +463,7 @@ mod tests {
         let waveforms = [Waveform::Sine, Waveform::Square, Waveform::Sawtooth, Waveform::Triangle];
 
         for waveform in &waveforms {
-            let samples = generate_wave(*waveform, 440.0, 0.1, 44100);
+            let samples = generate_wave(waveform.clone(), 440.0, 0.1, 44100);
 
             for sample in &samples {
                 assert!(
@@ -571,7 +757,7 @@ mod tests {
 
         for waveform in &waveforms {
             let mut event = base_event.clone();
-            event.waveform = *waveform;
+            event.waveform = waveform.clone();
 
             let samples = render_event(&event, 100);
             assert_eq!(samples.len(), 10);
@@ -966,5 +1152,116 @@ mod tests {
         let timeline = render_timeline(events, 0.0, 100);
 
         assert_eq!(timeline.len(), 0);
+    }
+
+    #[test]
+    fn test_sample_data_creation() {
+        // Create a simple test sample: 1 second of 440Hz sine wave
+        let sample_rate = 44100;
+        let duration = 1.0;
+        let frequency = 440.0;
+
+        let mut test_samples = Vec::new();
+        for i in 0..(sample_rate as usize) {
+            let t = i as f32 / sample_rate as f32;
+            let sample = (2.0 * PI * frequency * t).sin();
+            test_samples.push(sample);
+        }
+
+        let metadata = SampleMetadata {
+            filename: "test_sine.wav".to_string(),
+            duration_secs: duration,
+            channels: 1,
+            bits_per_sample: 16,
+        };
+
+        let sample_data = SampleData {
+            samples: test_samples,
+            sample_rate,
+            base_frequency: frequency,
+            loop_start: None,
+            loop_end: None,
+            metadata,
+        };
+
+        // Test basic functionality
+        assert_eq!(sample_data.sample_rate, 44100);
+        assert_eq!(sample_data.base_frequency, 440.0);
+        assert_eq!(sample_data.metadata.filename, "test_sine.wav");
+
+        // Test sample retrieval at base frequency
+        let sample_at_start = sample_data.get_sample_at_time(0.0, 440.0);
+        assert!((sample_at_start - 0.0).abs() < TOLERANCE); // Sine starts at 0
+
+        // For 440Hz, quarter period is 1/(4*440) = 0.000568 seconds
+        let quarter_period = 1.0 / (4.0 * 440.0);
+        let sample_at_quarter = sample_data.get_sample_at_time(quarter_period, 440.0);
+        assert!((sample_at_quarter - 1.0).abs() < 0.1); // Should be near peak
+    }
+
+    #[test]
+    fn test_sample_pitch_shifting() {
+        // Create a test sample
+        let sample_rate = 1000; // Low sample rate for testing
+        let base_freq = 100.0;
+
+        let mut test_samples = Vec::new();
+        for i in 0..sample_rate {
+            let t = i as f32 / sample_rate as f32;
+            let sample = (2.0 * PI * base_freq * t).sin();
+            test_samples.push(sample);
+        }
+
+        let sample_data = SampleData {
+            samples: test_samples,
+            sample_rate,
+            base_frequency: base_freq,
+            loop_start: None,
+            loop_end: None,
+            metadata: SampleMetadata {
+                filename: "test.wav".to_string(),
+                duration_secs: 1.0,
+                channels: 1,
+                bits_per_sample: 16,
+            },
+        };
+
+        // Test octave up (2x frequency)
+        let sample_at_base = sample_data.get_sample_at_time(0.5, base_freq);
+        let sample_at_octave = sample_data.get_sample_at_time(0.25, base_freq * 2.0);
+
+        // When pitched up 2x, position 0.25 should sound like position 0.5 at base freq
+        assert!((sample_at_base - sample_at_octave).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_sample_waveform_integration() {
+        // Create a simple sample
+        let test_samples = vec![0.0, 0.5, 1.0, 0.5, 0.0, -0.5, -1.0, -0.5];
+
+        let sample_data = SampleData {
+            samples: test_samples,
+            sample_rate: 8,
+            base_frequency: 1.0, // 1Hz
+            loop_start: None,
+            loop_end: None,
+            metadata: SampleMetadata {
+                filename: "test.wav".to_string(),
+                duration_secs: 1.0,
+                channels: 1,
+                bits_per_sample: 16,
+            },
+        };
+
+        // Test with generate_wave function
+        let waveform = Waveform::Sample(sample_data);
+        let generated = generate_wave(waveform, 1.0, 0.5, 8);
+
+        assert_eq!(generated.len(), 4); // 0.5 seconds at 8 samples/sec
+
+        // Verify we get reasonable values
+        for sample in &generated {
+            assert!(*sample >= -1.1 && *sample <= 1.1); // Allow some interpolation error
+        }
     }
 }
