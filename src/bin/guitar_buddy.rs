@@ -67,7 +67,7 @@ impl DrumSampleManager {
             (ClickType::HiHatClosed, "samples/drums/acoustic/kit_01/drumkit-hihat.wav"),
             (ClickType::HiHatOpen, "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav"),
             (ClickType::RimShot, "samples/drums/acoustic/kit_01/drumkit-rimshot.wav"), // Dedicated rimshot sample
-            (ClickType::Stick, "samples/drums/acoustic/kit_01/drumkit-hihat.wav"),    // Reuse hi-hat with short envelope
+            (ClickType::Stick, "samples/drums/acoustic/kit_01/drumkit-stick.wav"),    // Dedicated stick sample
         ];
 
         for (click_type, path) in sample_paths {

@@ -47,6 +47,15 @@
           "recommended_velocity": 0.7,
           "metronome_usage": true
         },
+        "stick": {
+          "file": "drumkit-stick.wav",
+          "description": "Drumstick click sound",
+          "sample_rate": 44100,
+          "channels": "stereo",
+          "duration_ms": 150,
+          "recommended_velocity": 0.6,
+          "metronome_usage": true
+        },
         "hihat_closed": {
           "file": "drumkit-hihat.wav",
           "description": "Closed hi-hat with short decay",
@@ -157,10 +166,10 @@
     },
     "Stick": {
       "kit": "Acoustic Kit 01",
-      "sample": "hihat_closed",
+      "sample": "stick",
       "envelope": {
         "attack_secs": 0.001,
-        "decay_secs": 0.03,
+        "decay_secs": 0.05,
         "sustain_level": 0.0,
         "release_secs": 0.01
       }
