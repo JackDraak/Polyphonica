@@ -15,5 +15,6 @@ name = "polyphonica"
 path = "src/lib.rs"
 
 [dependencies]
+hound = "3.5"
 
 [dev-dependencies]
