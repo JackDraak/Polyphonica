@@ -6,7 +6,7 @@
 /// Uses Polyphonica real-time synthesis engine for precise, low-latency audio generation.
 
 use polyphonica::{RealtimeEngine, Waveform, AdsrEnvelope, SampleData};
-use polyphonica::timing::{BeatClock, Metronome as NewMetronome, TimeSignature as TimingTimeSignature, ClickType as TimingClickType};
+use polyphonica::timing::{BeatClock, Metronome as NewMetronome, TimeSignature, ClickType, BeatEvent, BeatTracker};
 use polyphonica::patterns::{DrumPattern, PatternState, PatternLibrary};
 use eframe::egui;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -15,48 +15,6 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use std::collections::HashMap;
 
-/// Time signature representation
-#[derive(Debug, Clone, Copy, PartialEq)]
-struct TimeSignature {
-    beats_per_measure: u8,
-    note_value: u8, // 4 = quarter note, 8 = eighth note, etc.
-}
-
-impl TimeSignature {
-    fn new(beats: u8, note_value: u8) -> Self {
-        Self {
-            beats_per_measure: beats,
-            note_value,
-        }
-    }
-
-    fn common_signatures() -> Vec<(&'static str, TimeSignature)> {
-        vec![
-            ("4/4", TimeSignature::new(4, 4)),
-            ("3/4", TimeSignature::new(3, 4)),
-            ("2/4", TimeSignature::new(2, 4)),
-            ("6/8", TimeSignature::new(6, 8)),
-            ("9/8", TimeSignature::new(9, 8)),
-            ("12/8", TimeSignature::new(12, 8)),
-            ("5/4", TimeSignature::new(5, 4)),
-            ("7/8", TimeSignature::new(7, 8)),
-        ]
-    }
-
-    fn display(&self) -> String {
-        format!("{}/{}", self.beats_per_measure, self.note_value)
-    }
-
-    /// Convert to new timing module TimeSignature
-    fn to_timing_signature(&self) -> TimingTimeSignature {
-        TimingTimeSignature::new(self.beats_per_measure, self.note_value)
-    }
-
-    /// Convert from new timing module TimeSignature
-    fn from_timing_signature(ts: TimingTimeSignature) -> Self {
-        Self::new(ts.beats_per_measure, ts.note_value)
-    }
-}
 
 /// Drum pattern system for Phase 2 - now using polyphonica::patterns module
 
@@ -119,131 +77,16 @@ impl DrumSampleManager {
 
 }
 
-/// Beat event for coupling audio triggers with visualizer updates
-/// Note: samples and timestamp fields are populated but not yet used -
-/// they're intended for future analysis and debugging features
-#[derive(Debug, Clone)]
-struct BeatEvent {
-    beat_number: u8,         // 1-based beat number (1, 2, 3, 4)
-    accent: bool,            // Whether this beat is accented
-    samples: Vec<ClickType>, // Audio samples that were triggered (for future use)
-    timestamp: Instant,      // When this beat was triggered (for future use)
+
+/// Audio-specific extensions for ClickType
+trait ClickTypeAudioExt {
+    fn get_sound_params(self, sample_manager: &DrumSampleManager) -> (Waveform, f32, AdsrEnvelope);
+    fn get_sample_envelope(self) -> AdsrEnvelope;
+    fn get_synthetic_params(self) -> (Waveform, f32, AdsrEnvelope);
 }
 
-/// Beat tracker - captures audio trigger events for visualizer coupling
-#[derive(Debug, Clone)]
-struct BeatTracker {
-    current_beat: Option<BeatEvent>,  // Last triggered beat event
-    beat_history: Vec<BeatEvent>,     // Recent beat events (for analysis)
-    max_history: usize,               // Maximum events to keep in history
-}
+impl ClickTypeAudioExt for ClickType {
 
-impl BeatTracker {
-    fn new() -> Self {
-        Self {
-            current_beat: None,
-            beat_history: Vec::new(),
-            max_history: 32,  // Keep last 32 beat events
-        }
-    }
-
-    /// Record a beat event from audio trigger
-    fn record_beat(&mut self, event: BeatEvent) {
-        self.current_beat = Some(event.clone());
-
-        // Add to history with size limit
-        self.beat_history.push(event);
-        if self.beat_history.len() > self.max_history {
-            self.beat_history.remove(0);
-        }
-    }
-
-    /// Get current beat state for visualizer
-    fn get_current_beat(&self) -> (u8, bool) {
-        if let Some(ref event) = self.current_beat {
-            (event.beat_number, event.accent)
-        } else {
-            (1, false)  // Default state
-        }
-    }
-
-}
-
-/// Different metronome click sound types
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum ClickType {
-    // Synthetic sounds
-    WoodBlock,      // Sharp percussive click
-    DigitalBeep,    // Clean sine wave beep
-    Cowbell,        // Metallic ring
-    ElectroClick,   // Electronic click
-    // Real drum samples
-    AcousticKick,   // Acoustic kick drum
-    AcousticSnare,  // Acoustic snare drum
-    HiHatClosed,    // Closed hi-hat
-    HiHatOpen,      // Open hi-hat
-    RimShot,        // Snare rim (using snare sample with envelope)
-    Stick,          // Drumstick click (using hi-hat)
-    // Extended drum kit samples (from JSON catalog)
-    KickTight,      // Tight, punchy kick drum variant
-    HiHatLoose,     // Loose hi-hat with medium decay
-    HiHatVeryLoose, // Very loose hi-hat with long decay
-    CymbalSplash,   // Splash cymbal for accents
-    CymbalRoll,     // Cymbal roll/crash
-    Ride,           // Ride cymbal for rhythm patterns
-    RideBell,       // Ride bell for accents and highlights
-}
-
-impl ClickType {
-    fn all() -> Vec<ClickType> {
-        vec![
-            // Synthetic sounds
-            ClickType::WoodBlock,
-            ClickType::DigitalBeep,
-            ClickType::Cowbell,
-            ClickType::ElectroClick,
-            // Real drum samples
-            ClickType::AcousticKick,
-            ClickType::AcousticSnare,
-            ClickType::HiHatClosed,
-            ClickType::HiHatOpen,
-            ClickType::RimShot,
-            ClickType::Stick,
-            // Extended drum kit samples
-            ClickType::KickTight,
-            ClickType::HiHatLoose,
-            ClickType::HiHatVeryLoose,
-            ClickType::CymbalSplash,
-            ClickType::CymbalRoll,
-            ClickType::Ride,
-            ClickType::RideBell,
-        ]
-    }
-
-    fn name(self) -> &'static str {
-        match self {
-            // Synthetic sounds
-            ClickType::WoodBlock => "Wood Block",
-            ClickType::DigitalBeep => "Digital Beep",
-            ClickType::Cowbell => "Cowbell",
-            ClickType::ElectroClick => "Electro Click",
-            // Real drum samples
-            ClickType::AcousticKick => "Acoustic Kick",
-            ClickType::AcousticSnare => "Acoustic Snare",
-            ClickType::HiHatClosed => "Hi-Hat Closed",
-            ClickType::HiHatOpen => "Hi-Hat Open",
-            ClickType::RimShot => "Rim Shot",
-            ClickType::Stick => "Drum Stick",
-            // Extended drum kit samples
-            ClickType::KickTight => "Kick Tight",
-            ClickType::HiHatLoose => "Hi-Hat Loose",
-            ClickType::HiHatVeryLoose => "Hi-Hat Very Loose",
-            ClickType::CymbalSplash => "Cymbal Splash",
-            ClickType::CymbalRoll => "Cymbal Roll",
-            ClickType::Ride => "Ride Cymbal",
-            ClickType::RideBell => "Ride Bell",
-        }
-    }
 
     /// Generate the waveform and parameters for this click type
     fn get_sound_params(self, sample_manager: &DrumSampleManager) -> (Waveform, f32, AdsrEnvelope) {
@@ -567,7 +410,7 @@ impl MetronomeState {
             pattern_mode: false,
             pattern_library: PatternLibrary::with_defaults(),
             beat_tracker: BeatTracker::new(),
-            new_metronome: NewMetronome::new(TimingTimeSignature::new(4, 4)),
+            new_metronome: NewMetronome::new(TimeSignature::new(4, 4)),
         };
         // Sync initial settings to new metronome
         instance.sync_to_new_metronome();
@@ -576,28 +419,8 @@ impl MetronomeState {
 
     /// Sync settings to new metronome
     fn sync_to_new_metronome(&mut self) {
-        self.new_metronome.set_time_signature(self.time_signature.to_timing_signature());
-        // Convert ClickType
-        let timing_click = match self.click_type {
-            ClickType::WoodBlock => TimingClickType::WoodBlock,
-            ClickType::DigitalBeep => TimingClickType::DigitalBeep,
-            ClickType::Cowbell => TimingClickType::Cowbell,
-            ClickType::ElectroClick => TimingClickType::ElectroClick,
-            ClickType::AcousticKick => TimingClickType::AcousticKick,
-            ClickType::AcousticSnare => TimingClickType::AcousticSnare,
-            ClickType::HiHatClosed => TimingClickType::HiHatClosed,
-            ClickType::HiHatOpen => TimingClickType::HiHatOpen,
-            ClickType::RimShot => TimingClickType::RimShot,
-            ClickType::Stick => TimingClickType::Stick,
-            ClickType::KickTight => TimingClickType::KickTight,
-            ClickType::HiHatLoose => TimingClickType::HiHatLoose,
-            ClickType::HiHatVeryLoose => TimingClickType::HiHatVeryLoose,
-            ClickType::CymbalSplash => TimingClickType::CymbalSplash,
-            ClickType::CymbalRoll => TimingClickType::CymbalRoll,
-            ClickType::Ride => TimingClickType::Ride,
-            ClickType::RideBell => TimingClickType::RideBell,
-        };
-        self.new_metronome.set_click_type(timing_click);
+        self.new_metronome.set_time_signature(self.time_signature);
+        self.new_metronome.set_click_type(self.click_type);
         self.new_metronome.set_accent_first_beat(self.accent_first_beat);
     }
 
@@ -640,38 +463,16 @@ impl MetronomeState {
     /// Check for pattern triggers and return samples to play
     fn check_pattern_triggers(&mut self) -> Vec<(ClickType, bool)> {
         if self.pattern_mode && self.is_playing {
-            // Convert PatternTrigger to (ClickType, bool)
+            // Get pattern triggers directly
             self.pattern_state.check_pattern_triggers(self.tempo_bpm)
                 .into_iter()
-                .map(|trigger| (self.convert_timing_click_type(trigger.click_type), trigger.is_accent))
+                .map(|trigger| (trigger.click_type, trigger.is_accent))
                 .collect()
         } else {
             vec![]
         }
     }
 
-    /// Convert timing module ClickType to local ClickType
-    fn convert_timing_click_type(&self, timing_click: TimingClickType) -> ClickType {
-        match timing_click {
-            TimingClickType::WoodBlock => ClickType::WoodBlock,
-            TimingClickType::DigitalBeep => ClickType::DigitalBeep,
-            TimingClickType::Cowbell => ClickType::Cowbell,
-            TimingClickType::ElectroClick => ClickType::ElectroClick,
-            TimingClickType::AcousticKick => ClickType::AcousticKick,
-            TimingClickType::AcousticSnare => ClickType::AcousticSnare,
-            TimingClickType::HiHatClosed => ClickType::HiHatClosed,
-            TimingClickType::HiHatOpen => ClickType::HiHatOpen,
-            TimingClickType::RimShot => ClickType::RimShot,
-            TimingClickType::Stick => ClickType::Stick,
-            TimingClickType::KickTight => ClickType::KickTight,
-            TimingClickType::HiHatLoose => ClickType::HiHatLoose,
-            TimingClickType::HiHatVeryLoose => ClickType::HiHatVeryLoose,
-            TimingClickType::CymbalSplash => ClickType::CymbalSplash,
-            TimingClickType::CymbalRoll => ClickType::CymbalRoll,
-            TimingClickType::Ride => ClickType::Ride,
-            TimingClickType::RideBell => ClickType::RideBell,
-        }
-    }
 
     fn start(&mut self) {
         self.is_playing = true;
@@ -968,7 +769,7 @@ mod gui_components {
             });
         }
 
-        fn format_time_signature(time_sig: &TimingTimeSignature) -> String {
+        fn format_time_signature(time_sig: &TimeSignature) -> String {
             format!("{}/{}", time_sig.beats_per_measure, time_sig.note_value)
         }
     }
@@ -994,7 +795,7 @@ mod gui_components {
                             1 // Default to beat 1 when not playing or no triggers yet
                         };
                         let time_sig = metronome.pattern_state.current_pattern()
-                            .map(|p| TimeSignature::from_timing_signature(p.time_signature))
+                            .map(|p| p.time_signature)
                             .unwrap_or(metronome.time_signature);
                         (pattern_beat, time_sig)
                     } else {
@@ -1112,12 +913,13 @@ impl GuitarBuddy {
         let click_type = metronome.click_type;
 
         // Record beat event for visualizer coupling
-        let beat_event = BeatEvent {
+        let beat_event = BeatEvent::new(
             beat_number,
-            accent: is_accent,
-            samples: vec![click_type],
-            timestamp: Instant::now(),
-        };
+            is_accent,
+            vec![click_type],
+            metronome.tempo_bpm,
+            metronome.time_signature,
+        );
         metronome.beat_tracker.record_beat(beat_event);
 
         drop(metronome);
@@ -1201,12 +1003,13 @@ impl GuitarBuddy {
 
         // Record beat event for visualizer coupling (only once per beat, not per sample)
         if click_type == samples[0] {  // Only record event for the first sample in the group
-            let beat_event = BeatEvent {
+            let beat_event = BeatEvent::new(
                 beat_number,
-                accent: is_accent,
-                samples: samples.clone(),
-                timestamp: Instant::now(),
-            };
+                is_accent,
+                samples.clone(),
+                metronome.tempo_bpm,
+                metronome.time_signature,
+            );
             metronome.beat_tracker.record_beat(beat_event);
         }
 

@@ -34,32 +34,44 @@ pub trait BeatObserver {
 /// beat events for analysis and timing validation.
 #[derive(Debug, Clone)]
 pub struct BeatTracker {
-    // Implementation will be added in Phase 1.5
+    current_beat: Option<BeatEvent>,  // Last triggered beat event
+    beat_history: Vec<BeatEvent>,     // Recent beat events (for analysis)
+    max_history: usize,               // Maximum events to keep in history
 }
 
 impl BeatTracker {
     /// Create a new beat tracker
     pub fn new() -> Self {
         Self {
-            // Placeholder
+            current_beat: None,
+            beat_history: Vec::new(),
+            max_history: 32,  // Keep last 32 beat events
         }
     }
 
     /// Record a beat event
-    pub fn record_beat(&mut self, _event: BeatEvent) {
-        // Implementation will be added in Phase 1.5
+    pub fn record_beat(&mut self, event: BeatEvent) {
+        self.current_beat = Some(event.clone());
+
+        // Add to history with size limit
+        self.beat_history.push(event);
+        if self.beat_history.len() > self.max_history {
+            self.beat_history.remove(0);
+        }
     }
 
     /// Get the current beat state for display
     pub fn get_current_beat(&self) -> (u8, bool) {
-        // Implementation will be added in Phase 1.5
-        (1, false)
+        if let Some(ref event) = self.current_beat {
+            (event.beat_number, event.accent)
+        } else {
+            (1, false)  // Default state
+        }
     }
 
     /// Get the last beat timestamp for timing analysis
     pub fn get_last_beat_time(&self) -> Option<std::time::Instant> {
-        // Implementation will be added in Phase 1.5
-        None
+        self.current_beat.as_ref().map(|event| event.timestamp)
     }
 
     /// Add an observer to receive beat events
