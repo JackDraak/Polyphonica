@@ -512,6 +512,8 @@ pub struct Voice {
     pub voice_id: u32,
     /// Sample time offset for samples
     pub sample_time: f32,
+    /// Volume scaling (0.0 to 1.0)
+    pub volume: f32,
 }
 
 /// Current state within ADSR envelope
@@ -638,6 +640,7 @@ impl Voice {
             active: AtomicBool::new(false),
             voice_id,
             sample_time: 0.0,
+            volume: 1.0,
         }
     }
 
@@ -647,6 +650,7 @@ impl Voice {
         self.phase = 0.0;
         self.sample_time = 0.0;
         self.envelope_state = EnvelopeState::new();
+        self.volume = 1.0;
     }
 
     /// Trigger a note with the given parameters
@@ -658,6 +662,20 @@ impl Voice {
         self.envelope_state = EnvelopeState::new();
         self.phase = 0.0;
         self.sample_time = 0.0;
+        self.volume = 1.0;
+        self.active.store(true, Ordering::Relaxed);
+    }
+
+    /// Trigger a note with volume scaling
+    pub fn trigger_note_with_volume(&mut self, waveform: Waveform, frequency: f32, envelope: AdsrEnvelope, volume: f32) {
+        self.waveform = waveform;
+        self.frequency = frequency;
+        self.target_frequency = frequency;
+        self.envelope = envelope;
+        self.envelope_state = EnvelopeState::new();
+        self.phase = 0.0;
+        self.sample_time = 0.0;
+        self.volume = volume;  // Store volume for use during sample generation
         self.active.store(true, Ordering::Relaxed);
     }
 
@@ -693,8 +711,8 @@ impl Voice {
         // Update sample time for sample-based waveforms
         self.sample_time += dt;
 
-        // Apply envelope and amplitude
-        waveform_sample * envelope_amplitude * self.amplitude
+        // Apply envelope, amplitude, and volume
+        waveform_sample * envelope_amplitude * self.amplitude * self.volume
     }
 
     pub fn is_active(&self) -> bool {
@@ -715,6 +733,7 @@ impl Clone for Voice {
             active: AtomicBool::new(self.active.load(Ordering::Relaxed)),
             voice_id: self.voice_id,
             sample_time: self.sample_time,
+            volume: self.volume,
         }
     }
 }
@@ -781,6 +800,29 @@ impl RealtimeEngine {
         // If no inactive voice found, steal the oldest voice (voice stealing)
         if let Some(oldest_voice) = self.voices.iter_mut().min_by_key(|v| v.voice_id) {
             oldest_voice.trigger_note(waveform, frequency, envelope);
+            self.next_voice_id += 1;
+            oldest_voice.voice_id = self.next_voice_id;
+            Some(oldest_voice.voice_id)
+        } else {
+            None
+        }
+    }
+
+    /// Trigger a new note with volume control (finds an available voice)
+    pub fn trigger_note_with_volume(&mut self, waveform: Waveform, frequency: f32, envelope: AdsrEnvelope, volume: f32) -> Option<u32> {
+        // First, try to find an inactive voice
+        for voice in &mut self.voices {
+            if !voice.is_active() {
+                voice.trigger_note_with_volume(waveform, frequency, envelope, volume);
+                self.next_voice_id += 1;
+                voice.voice_id = self.next_voice_id;
+                return Some(voice.voice_id);
+            }
+        }
+
+        // If no inactive voice found, steal the oldest voice (voice stealing)
+        if let Some(oldest_voice) = self.voices.iter_mut().min_by_key(|v| v.voice_id) {
+            oldest_voice.trigger_note_with_volume(waveform, frequency, envelope, volume);
             self.next_voice_id += 1;
             oldest_voice.voice_id = self.next_voice_id;
             Some(oldest_voice.voice_id)

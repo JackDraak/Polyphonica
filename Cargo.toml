@@ -30,6 +30,14 @@ path = "src/bin/rt_demo.rs"
 name = "guitar-buddy"
 path = "src/bin/guitar_buddy.rs"
 
+[[bin]]
+name = "pattern-timing-test"
+path = "src/bin/pattern_timing_test.rs"
+
+[[bin]]
+name = "precision-timing-test"
+path = "src/bin/precision_timing_test.rs"
+
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
 hound = "3.5"

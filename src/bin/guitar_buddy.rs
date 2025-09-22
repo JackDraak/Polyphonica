@@ -46,6 +46,283 @@ impl TimeSignature {
     }
 }
 
+/// Drum pattern system for Phase 2
+#[derive(Debug, Clone)]
+struct DrumPatternBeat {
+    beat_position: f32,  // 1.0 = first beat, 1.5 = halfway to second beat, etc.
+    samples: Vec<ClickType>,
+    accent: bool,
+}
+
+#[derive(Debug, Clone)]
+struct DrumPattern {
+    name: String,
+    time_signature: TimeSignature,
+    tempo_range: (u32, u32),  // (min_bpm, max_bpm)
+    beats: Vec<DrumPatternBeat>,
+}
+
+impl DrumPattern {
+    fn basic_rock() -> Self {
+        Self {
+            name: "Basic Rock Beat".to_string(),
+            time_signature: TimeSignature::new(4, 4),
+            tempo_range: (80, 140),
+            beats: vec![
+                DrumPatternBeat { beat_position: 1.0, samples: vec![ClickType::AcousticKick, ClickType::HiHatClosed], accent: true },
+                DrumPatternBeat { beat_position: 1.5, samples: vec![ClickType::HiHatClosed], accent: false },
+                DrumPatternBeat { beat_position: 2.0, samples: vec![ClickType::AcousticSnare, ClickType::HiHatClosed], accent: false },
+                DrumPatternBeat { beat_position: 2.5, samples: vec![ClickType::HiHatClosed], accent: false },
+                DrumPatternBeat { beat_position: 3.0, samples: vec![ClickType::AcousticKick, ClickType::HiHatClosed], accent: false },
+                DrumPatternBeat { beat_position: 3.5, samples: vec![ClickType::HiHatClosed], accent: false },
+                DrumPatternBeat { beat_position: 4.0, samples: vec![ClickType::AcousticSnare, ClickType::HiHatClosed], accent: false },
+                DrumPatternBeat { beat_position: 4.5, samples: vec![ClickType::HiHatClosed], accent: false },
+            ],
+        }
+    }
+
+    fn shuffle() -> Self {
+        Self {
+            name: "Shuffle Beat".to_string(),
+            time_signature: TimeSignature::new(4, 4),
+            tempo_range: (60, 120),
+            beats: vec![
+                DrumPatternBeat { beat_position: 1.0, samples: vec![ClickType::AcousticKick, ClickType::HiHatClosed], accent: true },
+                DrumPatternBeat { beat_position: 1.67, samples: vec![ClickType::HiHatClosed], accent: false },
+                DrumPatternBeat { beat_position: 2.0, samples: vec![ClickType::AcousticSnare, ClickType::HiHatClosed], accent: false },
+                DrumPatternBeat { beat_position: 2.67, samples: vec![ClickType::HiHatClosed], accent: false },
+                DrumPatternBeat { beat_position: 3.0, samples: vec![ClickType::AcousticKick, ClickType::HiHatClosed], accent: false },
+                DrumPatternBeat { beat_position: 3.67, samples: vec![ClickType::HiHatClosed], accent: false },
+                DrumPatternBeat { beat_position: 4.0, samples: vec![ClickType::AcousticSnare, ClickType::HiHatClosed], accent: false },
+                DrumPatternBeat { beat_position: 4.67, samples: vec![ClickType::HiHatClosed], accent: false },
+            ],
+        }
+    }
+
+    fn ballad() -> Self {
+        Self {
+            name: "Ballad Beat".to_string(),
+            time_signature: TimeSignature::new(4, 4),
+            tempo_range: (60, 90),
+            beats: vec![
+                DrumPatternBeat { beat_position: 1.0, samples: vec![ClickType::AcousticKick, ClickType::HiHatClosed], accent: true },
+                DrumPatternBeat { beat_position: 2.0, samples: vec![ClickType::AcousticSnare, ClickType::HiHatClosed], accent: false },
+                DrumPatternBeat { beat_position: 3.0, samples: vec![ClickType::AcousticKick, ClickType::HiHatClosed], accent: false },
+                DrumPatternBeat { beat_position: 4.0, samples: vec![ClickType::AcousticSnare, ClickType::HiHatClosed], accent: false },
+            ],
+        }
+    }
+
+    fn waltz() -> Self {
+        Self {
+            name: "Waltz Beat".to_string(),
+            time_signature: TimeSignature::new(3, 4),
+            tempo_range: (90, 180),
+            beats: vec![
+                DrumPatternBeat { beat_position: 1.0, samples: vec![ClickType::AcousticKick], accent: true },
+                DrumPatternBeat { beat_position: 2.0, samples: vec![ClickType::AcousticSnare], accent: false },
+                DrumPatternBeat { beat_position: 3.0, samples: vec![ClickType::AcousticSnare], accent: false },
+            ],
+        }
+    }
+
+    fn all_patterns() -> Vec<DrumPattern> {
+        vec![
+            Self::basic_rock(),
+            Self::shuffle(),
+            Self::ballad(),
+            Self::waltz(),
+        ]
+    }
+}
+
+/// Pattern playback state - using discrete beat scheduling to avoid timing drift
+#[derive(Debug, Clone)]
+struct PatternState {
+    current_pattern: Option<DrumPattern>,
+    current_beat_index: usize,  // Index into current pattern's beats (0-based)
+    next_beat_time: Option<Instant>,  // Absolute time when next beat should trigger
+    pattern_enabled: bool,
+}
+
+impl PatternState {
+    fn new() -> Self {
+        Self {
+            current_pattern: None,
+            current_beat_index: 0,
+            next_beat_time: None,
+            pattern_enabled: false,
+        }
+    }
+
+    fn set_pattern(&mut self, pattern: DrumPattern) {
+        self.current_pattern = Some(pattern);
+        self.current_beat_index = 0;
+        self.next_beat_time = None;
+    }
+
+    fn clear_pattern(&mut self) {
+        self.current_pattern = None;
+        self.pattern_enabled = false;
+        self.current_beat_index = 0;
+        self.next_beat_time = None;
+    }
+
+    fn start(&mut self) {
+        self.pattern_enabled = true;
+        self.current_beat_index = 0;
+        self.next_beat_time = None;
+    }
+
+    fn stop(&mut self) {
+        self.pattern_enabled = false;
+        self.current_beat_index = 0;
+        self.next_beat_time = None;
+    }
+
+    /// Check if it's time to trigger pattern beats using discrete beat scheduling (eliminates timing drift)
+    fn check_pattern_triggers(&mut self, tempo_bpm: f32) -> Vec<(ClickType, bool)> {
+        if !self.pattern_enabled {
+            return vec![];
+        }
+
+        let Some(ref pattern) = self.current_pattern else {
+            return vec![];
+        };
+
+        let now = Instant::now();
+
+        // Note: beat_interval_ms is calculated in helper methods as needed
+
+        match self.next_beat_time {
+            None => {
+                // Start pattern - schedule first beat
+                if pattern.beats.is_empty() {
+                    return vec![];
+                }
+
+                // Find beats at position 1.0 (start of pattern) - collect triggers first
+                let first_beat_triggers: Vec<(ClickType, bool)> = pattern.beats.iter()
+                    .filter(|beat| (beat.beat_position - 1.0).abs() < 0.01)
+                    .flat_map(|beat| beat.samples.iter().map(|&sample| (sample, beat.accent)))
+                    .collect();
+
+                if !first_beat_triggers.is_empty() {
+                    // Schedule next beat after the first one
+                    self.schedule_next_beat(tempo_bpm);
+                    first_beat_triggers
+                } else {
+                    // No beat 1, schedule first available beat
+                    self.current_beat_index = 0;
+                    self.schedule_next_beat(tempo_bpm);
+                    vec![]
+                }
+            }
+            Some(next_time) => {
+                // Check if it's time to trigger the next beat
+                if now >= next_time {
+                    // Trigger current beat
+                    let current_beat = &pattern.beats[self.current_beat_index];
+                    let triggers: Vec<_> = current_beat.samples.iter()
+                        .map(|&sample| (sample, current_beat.accent))
+                        .collect();
+
+                    // Advance to next beat with timing reset (prevents drift)
+                    self.advance_to_next_beat(tempo_bpm);
+
+                    triggers
+                } else {
+                    // Not time yet
+                    vec![]
+                }
+            }
+        }
+    }
+
+    /// Schedule the next beat trigger time based on pattern position
+    fn schedule_next_beat(&mut self, tempo_bpm: f32) {
+        let Some(ref pattern) = self.current_pattern else {
+            return;
+        };
+
+        if pattern.beats.is_empty() {
+            return;
+        }
+
+        let beat_interval_ms = 60000.0 / tempo_bpm as f64;
+        let current_beat = &pattern.beats[self.current_beat_index];
+
+        // Calculate milliseconds from beat 1 to this beat position
+        let ms_from_beat_1 = (current_beat.beat_position - 1.0) as f64 * beat_interval_ms;
+
+        // Schedule trigger time
+        self.next_beat_time = Some(Instant::now() + Duration::from_millis(ms_from_beat_1 as u64));
+    }
+
+    /// Advance to next beat in pattern and reset timing base (prevents drift accumulation)
+    fn advance_to_next_beat(&mut self, tempo_bpm: f32) {
+        let Some(ref pattern) = self.current_pattern else {
+            return;
+        };
+
+        if pattern.beats.is_empty() {
+            return;
+        }
+
+        // Advance beat index with looping
+        self.current_beat_index = (self.current_beat_index + 1) % pattern.beats.len();
+
+        let beat_interval_ms = 60000.0 / tempo_bpm as f64;
+        let current_beat = &pattern.beats[self.current_beat_index];
+        let next_beat_position = current_beat.beat_position;
+
+        // Calculate interval to next beat (handles looping)
+        let current_time = Instant::now();
+        let interval_ms = if self.current_beat_index == 0 {
+            // Looped back to start - calculate time to beat 1 of next measure
+            let current_beat_in_pattern = &pattern.beats[pattern.beats.len() - 1];
+            let loop_point = pattern.time_signature.beats_per_measure as f32 + 1.0;
+            let remaining_time = (loop_point - current_beat_in_pattern.beat_position) as f64 * beat_interval_ms;
+            let next_beat_time = (next_beat_position - 1.0) as f64 * beat_interval_ms;
+            remaining_time + next_beat_time
+        } else {
+            // Normal advance within measure
+            let prev_beat = &pattern.beats[self.current_beat_index - 1];
+            (next_beat_position - prev_beat.beat_position) as f64 * beat_interval_ms
+        };
+
+        // Reset timing base - this prevents drift accumulation!
+        self.next_beat_time = Some(current_time + Duration::from_millis(interval_ms as u64));
+    }
+
+    /// Get current beat number for visualizer (1-based)
+    fn get_current_beat_number(&self) -> u8 {
+        if let Some(ref pattern) = self.current_pattern {
+            if !pattern.beats.is_empty() && self.current_beat_index < pattern.beats.len() {
+                let current_beat = &pattern.beats[self.current_beat_index];
+                (current_beat.beat_position.floor() as u8).max(1)
+            } else {
+                1
+            }
+        } else {
+            1
+        }
+    }
+
+    /// Get current beat position for display (1.0-based)
+    fn get_current_beat_position(&self) -> f32 {
+        if let Some(ref pattern) = self.current_pattern {
+            if !pattern.beats.is_empty() && self.current_beat_index < pattern.beats.len() {
+                pattern.beats[self.current_beat_index].beat_position
+            } else {
+                1.0
+            }
+        } else {
+            1.0
+        }
+    }
+}
+
 /// Drum sample manager for loading and storing samples
 #[derive(Debug, Clone)]
 struct DrumSampleManager {
@@ -92,6 +369,58 @@ impl DrumSampleManager {
 
     fn has_sample(&self, click_type: &ClickType) -> bool {
         self.samples.contains_key(click_type)
+    }
+}
+
+/// Beat event for coupling audio triggers with visualizer updates
+#[derive(Debug, Clone)]
+struct BeatEvent {
+    beat_number: u8,         // 1-based beat number (1, 2, 3, 4)
+    accent: bool,            // Whether this beat is accented
+    samples: Vec<ClickType>, // Audio samples that were triggered
+    timestamp: Instant,      // When this beat was triggered
+}
+
+/// Beat tracker - captures audio trigger events for visualizer coupling
+#[derive(Debug, Clone)]
+struct BeatTracker {
+    current_beat: Option<BeatEvent>,  // Last triggered beat event
+    beat_history: Vec<BeatEvent>,     // Recent beat events (for analysis)
+    max_history: usize,               // Maximum events to keep in history
+}
+
+impl BeatTracker {
+    fn new() -> Self {
+        Self {
+            current_beat: None,
+            beat_history: Vec::new(),
+            max_history: 32,  // Keep last 32 beat events
+        }
+    }
+
+    /// Record a beat event from audio trigger
+    fn record_beat(&mut self, event: BeatEvent) {
+        self.current_beat = Some(event.clone());
+
+        // Add to history with size limit
+        self.beat_history.push(event);
+        if self.beat_history.len() > self.max_history {
+            self.beat_history.remove(0);
+        }
+    }
+
+    /// Get current beat state for visualizer
+    fn get_current_beat(&self) -> (u8, bool) {
+        if let Some(ref event) = self.current_beat {
+            (event.beat_number, event.accent)
+        } else {
+            (1, false)  // Default state
+        }
+    }
+
+    /// Get last beat timestamp for timing analysis
+    fn get_last_beat_time(&self) -> Option<Instant> {
+        self.current_beat.as_ref().map(|event| event.timestamp)
     }
 }
 
@@ -331,6 +660,11 @@ struct MetronomeState {
     volume: f32,
     current_beat: u8,
     last_beat_time: Option<Instant>,
+    // Phase 2: Pattern support
+    pattern_state: PatternState,
+    pattern_mode: bool,  // true = pattern mode, false = metronome mode
+    // Phase 2: Beat tracking for event-driven visualizer coupling
+    beat_tracker: BeatTracker,
 }
 
 impl MetronomeState {
@@ -344,6 +678,9 @@ impl MetronomeState {
             volume: 0.7,
             current_beat: 0,
             last_beat_time: None,
+            pattern_state: PatternState::new(),
+            pattern_mode: false,
+            beat_tracker: BeatTracker::new(),
         }
     }
 
@@ -389,25 +726,58 @@ impl MetronomeState {
         }
     }
 
+    /// Set drum pattern and switch to pattern mode
+    fn set_pattern(&mut self, pattern: DrumPattern) {
+        self.pattern_state.set_pattern(pattern);
+        self.pattern_mode = true;
+    }
+
+    /// Clear pattern and return to metronome mode
+    fn clear_pattern(&mut self) {
+        self.pattern_state.clear_pattern();
+        self.pattern_mode = false;
+    }
+
+    /// Check for pattern triggers and return samples to play
+    fn check_pattern_triggers(&mut self) -> Vec<(ClickType, bool)> {
+        if self.pattern_mode && self.is_playing {
+            self.pattern_state.check_pattern_triggers(self.tempo_bpm)
+        } else {
+            vec![]
+        }
+    }
+
     fn start(&mut self) {
         self.is_playing = true;
         self.current_beat = 0;
         self.last_beat_time = None;
+        if self.pattern_mode {
+            self.pattern_state.start();
+        }
     }
 
     fn stop(&mut self) {
         self.is_playing = false;
         self.current_beat = 0;
         self.last_beat_time = None;
+        if self.pattern_mode {
+            self.pattern_state.stop();
+        }
     }
 
     fn pause(&mut self) {
         self.is_playing = false;
+        if self.pattern_mode {
+            self.pattern_state.stop();
+        }
     }
 
     fn resume(&mut self) {
         self.is_playing = true;
         self.last_beat_time = Some(Instant::now());
+        if self.pattern_mode {
+            self.pattern_state.start();
+        }
     }
 }
 
@@ -454,12 +824,12 @@ impl GuitarBuddy {
         })
     }
 
-    fn trigger_click(&self, is_accent: bool) {
-        let metronome = self.app_state.metronome.lock().unwrap();
+    fn trigger_click(&self, is_accent: bool, beat_number: u8) {
+        let mut metronome = self.app_state.metronome.lock().unwrap();
         let drum_samples = self.app_state.drum_samples.lock().unwrap();
 
         // Use different sound for accents to make them clearly distinct
-        let (waveform, frequency, mut envelope) = if is_accent && metronome.accent_first_beat {
+        let (waveform, frequency, envelope) = if is_accent && metronome.accent_first_beat {
             // For accents, use a more prominent sound
             self.get_accent_sound(&metronome, &drum_samples)
         } else {
@@ -467,21 +837,23 @@ impl GuitarBuddy {
             metronome.click_type.get_sound_params(&drum_samples)
         };
 
-        let volume = if is_accent && metronome.accent_first_beat {
-            // Significantly louder accent (double volume)
-            (metronome.volume * 2.0).min(1.0)
-        } else {
-            metronome.volume
+        let volume = metronome.volume;
+        let click_type = metronome.click_type;
+
+        // Record beat event for visualizer coupling
+        let beat_event = BeatEvent {
+            beat_number,
+            accent: is_accent,
+            samples: vec![click_type],
+            timestamp: Instant::now(),
         };
+        metronome.beat_tracker.record_beat(beat_event);
 
         drop(metronome);
         drop(drum_samples);
 
-        // Adjust envelope amplitude based on volume
-        envelope.sustain_level *= volume;
-
         let mut engine = self.app_state.engine.lock().unwrap();
-        engine.trigger_note(waveform, frequency, envelope);
+        engine.trigger_note_with_volume(waveform, frequency, envelope, volume);
     }
 
     fn get_accent_sound(&self, metronome: &MetronomeState, drum_samples: &DrumSampleManager) -> (Waveform, f32, AdsrEnvelope) {
@@ -539,17 +911,73 @@ impl GuitarBuddy {
             ),
         }
     }
+
+    /// Trigger a specific drum sample for pattern playback
+    fn trigger_pattern_sample(&self, click_type: ClickType, is_accent: bool, beat_number: u8, samples: Vec<ClickType>) {
+        let mut metronome = self.app_state.metronome.lock().unwrap();
+        let drum_samples = self.app_state.drum_samples.lock().unwrap();
+
+        let (waveform, frequency, envelope) = click_type.get_sound_params(&drum_samples);
+
+        // Pattern accents need volume boost since they use same samples, unlike metronome which uses different sounds
+        let volume = if is_accent {
+            (metronome.volume * 1.5).min(1.0)  // 50% louder for pattern accents
+        } else {
+            metronome.volume
+        };
+
+        // Record beat event for visualizer coupling (only once per beat, not per sample)
+        if click_type == samples[0] {  // Only record event for the first sample in the group
+            let beat_event = BeatEvent {
+                beat_number,
+                accent: is_accent,
+                samples: samples.clone(),
+                timestamp: Instant::now(),
+            };
+            metronome.beat_tracker.record_beat(beat_event);
+        }
+
+        drop(metronome);
+        drop(drum_samples);
+
+        let mut engine = self.app_state.engine.lock().unwrap();
+        engine.trigger_note_with_volume(waveform, frequency, envelope, volume);
+    }
 }
 
 impl eframe::App for GuitarBuddy {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Check for metronome beats
+        // Check for metronome beats and drum patterns
         {
             let mut metronome = self.app_state.metronome.lock().unwrap();
-            if metronome.should_trigger_beat() {
-                let is_accent = metronome.current_beat == 1;
-                drop(metronome);
-                self.trigger_click(is_accent);
+
+            if metronome.pattern_mode {
+                // Pattern mode: only play drum patterns
+                let pattern_triggers = metronome.check_pattern_triggers();
+                if !pattern_triggers.is_empty() {
+                    // Collect beat information for BeatTracker event
+                    let beat_number = metronome.pattern_state.get_current_beat_number();
+                    let has_accent = pattern_triggers.iter().any(|(_, is_accent)| *is_accent);
+                    let all_samples: Vec<ClickType> = pattern_triggers.iter().map(|(click_type, _)| *click_type).collect();
+
+                    // Visualizer state is now handled by BeatTracker (no manual updates needed)
+
+                    drop(metronome);
+                    for (click_type, is_accent) in pattern_triggers {
+                        self.trigger_pattern_sample(click_type, is_accent, beat_number, all_samples.clone());
+                    }
+                }
+            } else {
+                // Metronome mode: only play metronome clicks
+                if metronome.should_trigger_beat() {
+                    let is_accent = metronome.current_beat == 1;
+                    let beat_number = metronome.current_beat;
+
+                    // Visualizer state is now handled by BeatTracker (no manual updates needed)
+
+                    drop(metronome);
+                    self.trigger_click(is_accent, beat_number);
+                }
             }
         }
 
@@ -684,8 +1112,61 @@ impl eframe::App for GuitarBuddy {
                 }
 
                 if ui.button("🔊 Test Accent").clicked() {
-                    self.trigger_click(true);
+                    self.trigger_click(true, 1);  // Test accent as beat 1
                 }
+            });
+
+            ui.separator();
+
+            // Phase 2: Drum Pattern Library
+            ui.collapsing("🥁 Drum Patterns (Phase 2)", |ui| {
+                let mut metronome = self.app_state.metronome.lock().unwrap();
+
+                ui.horizontal(|ui| {
+                    ui.label("Mode:");
+                    let mut pattern_mode = metronome.pattern_mode;
+                    if ui.radio_value(&mut pattern_mode, false, "Metronome").clicked() {
+                        metronome.clear_pattern();
+                    }
+                    if ui.radio_value(&mut pattern_mode, true, "Drum Pattern").clicked() && !metronome.pattern_mode {
+                        // Set default pattern when switching to pattern mode
+                        let was_playing = metronome.is_playing;
+                        metronome.set_pattern(DrumPattern::basic_rock());
+                        // If metronome was playing, continue playing in pattern mode
+                        if was_playing {
+                            metronome.pattern_state.start();
+                        }
+                    }
+                });
+
+                if metronome.pattern_mode {
+                    ui.separator();
+                    ui.label("Available Patterns:");
+
+                    let mut current_pattern_name = metronome.pattern_state.current_pattern
+                        .as_ref()
+                        .map(|p| p.name.clone())
+                        .unwrap_or_else(|| "None".to_string());
+
+                    for pattern in DrumPattern::all_patterns() {
+                        if ui.radio_value(&mut current_pattern_name, pattern.name.clone(), &pattern.name).clicked() {
+                            metronome.set_pattern(pattern.clone());
+                        }
+                    }
+
+                    ui.separator();
+                    if let Some(ref pattern) = metronome.pattern_state.current_pattern {
+                        ui.label(format!("Time: {}", pattern.time_signature.display()));
+                        ui.label(format!("Tempo Range: {}-{} BPM", pattern.tempo_range.0, pattern.tempo_range.1));
+
+                        // Show current pattern position if playing
+                        if metronome.pattern_state.pattern_enabled {
+                            ui.label(format!("Position: {:.1}", metronome.pattern_state.get_current_beat_position()));
+                        }
+                    }
+                }
+
+                drop(metronome);
             });
 
             ui.separator();
@@ -695,9 +1176,53 @@ impl eframe::App for GuitarBuddy {
                 ui.horizontal(|ui| {
                     let metronome = self.app_state.metronome.lock().unwrap();
 
-                    for beat in 1..=metronome.time_signature.beats_per_measure {
-                        let is_current = beat == current_beat && is_playing;
-                        let is_accent = beat == 1 && metronome.accent_first_beat;
+                    // Use last triggered beat for both metronome and pattern modes (coupled with audio)
+                    let (current_beat_display, time_sig) = if metronome.pattern_mode {
+                        // For pattern mode, use BeatTracker for last triggered beat
+                        let (tracked_beat, _) = metronome.beat_tracker.get_current_beat();
+                        let pattern_beat = if metronome.is_playing && tracked_beat > 0 {
+                            tracked_beat
+                        } else {
+                            1 // Default to beat 1 when not playing or no triggers yet
+                        };
+                        let time_sig = metronome.pattern_state.current_pattern
+                            .as_ref()
+                            .map(|p| p.time_signature)
+                            .unwrap_or(metronome.time_signature);
+                        (pattern_beat, time_sig)
+                    } else {
+                        // For metronome mode, use BeatTracker for last triggered beat
+                        let (tracked_beat, _) = metronome.beat_tracker.get_current_beat();
+                        let metronome_beat = if metronome.is_playing && tracked_beat > 0 {
+                            tracked_beat
+                        } else {
+                            current_beat // Fallback to current_beat if no triggers yet
+                        };
+                        (metronome_beat, metronome.time_signature)
+                    };
+
+                    for beat in 1..=time_sig.beats_per_measure {
+                        let is_current = beat == current_beat_display && is_playing;
+
+                        // Check accents: use actual triggered accent when showing current beat, pattern definition otherwise
+                        let is_accent = if is_current && metronome.is_playing {
+                            // For current beat, use BeatTracker accent status (coupled with audio)
+                            let (_, tracked_accent) = metronome.beat_tracker.get_current_beat();
+                            tracked_accent
+                        } else if metronome.pattern_mode {
+                            // For non-current beats in pattern mode, show pattern definition
+                            if let Some(ref pattern) = metronome.pattern_state.current_pattern {
+                                pattern.beats.iter().any(|pattern_beat| {
+                                    let beat_num = pattern_beat.beat_position.floor() as u8;
+                                    beat_num == beat && pattern_beat.accent
+                                })
+                            } else {
+                                false
+                            }
+                        } else {
+                            // For metronome mode, use metronome setting
+                            beat == 1 && metronome.accent_first_beat
+                        };
 
                         let color = if is_current && is_accent {
                             egui::Color32::YELLOW
@@ -714,8 +1239,13 @@ impl eframe::App for GuitarBuddy {
                     }
                 });
 
-                ui.label(format!("Interval: {:.0}ms between beats",
-                    self.app_state.metronome.lock().unwrap().beat_interval_ms()));
+                let metronome = self.app_state.metronome.lock().unwrap();
+                ui.label(format!("Interval: {:.0}ms between beats", metronome.beat_interval_ms()));
+
+                // Show additional pattern info if in pattern mode
+                if metronome.pattern_mode && metronome.pattern_state.pattern_enabled {
+                    ui.label(format!("Pattern Position: {:.2}", metronome.pattern_state.get_current_beat_position()));
+                }
             });
 
             ui.separator();
