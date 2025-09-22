@@ -468,7 +468,7 @@ polyphonica-test catalog search "drum"
 - **Noise Generation**: Linear congruential generator for deterministic output
 - **Pulse Wave Duty Cycle**: Configurable 0.0-1.0 range
 - **WAV Support**: Mono and stereo files via hound crate
-- **Real-time Audio**: Cross-platform via rodio/cpal
+- **Real-time Audio**: Cross-platform via CPAL (Cross-Platform Audio Library)
 
 ## Testing
 

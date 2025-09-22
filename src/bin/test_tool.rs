@@ -1,11 +1,12 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use hound::{WavSpec, WavWriter};
 use polyphonica::*;
-use rodio::{OutputStream, Sink, Source};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use std::sync::{Arc, Mutex};
+use std::sync::mpsc;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use std::time::Duration;
 
 #[derive(Parser)]
 #[command(name = "polyphonica-test")]
@@ -242,60 +243,11 @@ fn waveform_from_arg(arg: WaveformArg, duty_cycle: f32) -> Waveform {
     }
 }
 
-// Simple audio source that wraps our samples for rodio
-struct AudioSource {
-    samples: Vec<f32>,
-    sample_rate: u32,
-    position: usize,
-}
-
-impl AudioSource {
-    fn new(samples: Vec<f32>, sample_rate: u32) -> Self {
-        Self {
-            samples,
-            sample_rate,
-            position: 0,
-        }
-    }
-}
-
-impl Iterator for AudioSource {
-    type Item = f32;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.position < self.samples.len() {
-            let sample = self.samples[self.position];
-            self.position += 1;
-            Some(sample)
-        } else {
-            None
-        }
-    }
-}
-
-impl Source for AudioSource {
-    fn current_frame_len(&self) -> Option<usize> {
-        Some(self.samples.len() - self.position)
-    }
-
-    fn channels(&self) -> u16 {
-        1
-    }
-
-    fn sample_rate(&self) -> u32 {
-        self.sample_rate
-    }
-
-    fn total_duration(&self) -> Option<Duration> {
-        Some(Duration::from_secs_f32(
-            self.samples.len() as f32 / self.sample_rate as f32,
-        ))
-    }
-}
+// Audio playback using CPAL for consistency with main applications
 
 fn play_audio(
     samples: &[f32],
-    sample_rate: u32,
+    _sample_rate: u32,
     volume: f32,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("🎵 Playing audio...");
@@ -303,37 +255,119 @@ fn play_audio(
     // Clamp volume to safe range
     let volume = volume.clamp(0.0, 1.0);
 
-    // Try to create audio output stream
-    let (_stream, stream_handle) = match OutputStream::try_default() {
-        Ok(output) => output,
-        Err(e) => {
-            println!("⚠️  Could not initialize audio output: {}", e);
+    // Get default audio device
+    let host = cpal::default_host();
+    let device = match host.default_output_device() {
+        Some(device) => device,
+        None => {
+            println!("⚠️  No audio output device available");
             println!("   Make sure your system has audio output available.");
             return Ok(()); // Don't error, just skip playback
         }
     };
 
-    // Create sink for audio playback
-    let sink = match Sink::try_new(&stream_handle) {
-        Ok(sink) => sink,
+    let config = match device.default_output_config() {
+        Ok(config) => config,
         Err(e) => {
-            println!("⚠️  Could not create audio sink: {}", e);
+            println!("⚠️  Could not get audio device config: {}", e);
             return Ok(());
         }
     };
 
-    // Set volume
-    sink.set_volume(volume);
+    // Prepare audio data
+    let audio_samples = Arc::new(Mutex::new(samples.to_vec()));
+    let position = Arc::new(Mutex::new(0));
+    let finished = Arc::new(Mutex::new(false));
 
-    // Create audio source and play
-    let source = AudioSource::new(samples.to_vec(), sample_rate);
-    sink.append(source);
+    // Create completion channel
+    let (tx, rx) = mpsc::channel();
 
-    // Wait for playback to complete
-    sink.sleep_until_end();
+    // Create audio stream
+    let audio_samples_clone = audio_samples.clone();
+    let position_clone = position.clone();
+    let finished_clone = finished.clone();
+
+    let stream = match config.sample_format() {
+        cpal::SampleFormat::F32 => {
+            create_stream::<f32>(&device, &config.into(), audio_samples_clone, position_clone, finished_clone, volume, tx)
+        }
+        cpal::SampleFormat::I16 => {
+            create_stream::<i16>(&device, &config.into(), audio_samples_clone, position_clone, finished_clone, volume, tx)
+        }
+        cpal::SampleFormat::U16 => {
+            create_stream::<u16>(&device, &config.into(), audio_samples_clone, position_clone, finished_clone, volume, tx)
+        }
+        _ => {
+            println!("⚠️  Unsupported audio format");
+            return Ok(());
+        }
+    }?;
+
+    // Start playback
+    stream.play()?;
+
+    // Wait for completion
+    rx.recv()?;
 
     println!("✅ Playback completed");
     Ok(())
+}
+
+fn create_stream<T>(
+    device: &cpal::Device,
+    config: &cpal::StreamConfig,
+    audio_samples: Arc<Mutex<Vec<f32>>>,
+    position: Arc<Mutex<usize>>,
+    finished: Arc<Mutex<bool>>,
+    volume: f32,
+    completion_tx: mpsc::Sender<()>,
+) -> Result<cpal::Stream, Box<dyn std::error::Error>>
+where
+    T: cpal::Sample + cpal::SizedSample + cpal::FromSample<f32>,
+{
+    let channels = config.channels as usize;
+
+    let stream = device.build_output_stream(
+        config,
+        move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
+            let mut pos = position.lock().unwrap();
+            let samples = audio_samples.lock().unwrap();
+            let mut is_finished = finished.lock().unwrap();
+
+            if *is_finished {
+                return;
+            }
+
+            let frames = data.len() / channels;
+
+            for frame in 0..frames {
+                let sample_value = if *pos < samples.len() {
+                    samples[*pos] * volume
+                } else {
+                    if !*is_finished {
+                        *is_finished = true;
+                        let _ = completion_tx.send(());
+                    }
+                    0.0
+                };
+
+                // Fill all channels with the same mono sample
+                for channel in 0..channels {
+                    if let Some(sample) = data.get_mut(frame * channels + channel) {
+                        *sample = T::from_sample(sample_value);
+                    }
+                }
+
+                if *pos < samples.len() {
+                    *pos += 1;
+                }
+            }
+        },
+        |err| eprintln!("Audio stream error: {}", err),
+        None,
+    )?;
+
+    Ok(stream)
 }
 
 fn write_wav_file(
