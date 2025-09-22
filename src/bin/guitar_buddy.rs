@@ -68,7 +68,7 @@ impl MetronomeState {
             is_playing: false,
             tempo_bpm: 120.0,
             time_signature: TimeSignature::new(4, 4),
-            click_type: ClickType::WoodBlock,
+            click_type: ClickType::RimShot,
             accent_first_beat: true,
             volume: 0.5, // default volume
             current_beat: 0,
@@ -774,12 +774,15 @@ impl eframe::App for GuitarBuddy {
             ui.separator();
 
             ui.collapsing("Upcoming Features", |ui| {
-                ui.label("🥁 Drum patterns and backing tracks");
                 ui.label("🎹 Piano chord progressions");
                 ui.label("🎸 Bass line accompaniment");
                 ui.label("🎵 Key and chord change management");
-                ui.label("📚 Practice session recording");
+                ui.label("📚 Practice session recording and playback");
                 ui.label("🎯 Tempo trainer with gradual speed changes");
+                ui.label("🎛️ Custom pattern creation and editing");
+                ui.label("🎹 MIDI input/output synchronization");
+                ui.label("⌨️ Customizable keyboard shortcuts");
+                ui.label("🎨 Advanced visualization modes");
             });
         });
 
