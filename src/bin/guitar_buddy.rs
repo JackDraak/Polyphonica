@@ -6,8 +6,37 @@ use polyphonica::timing::{
 };
 /// Guitar Buddy - Musical Practice Companion
 ///
-/// Advanced metronome with multiple click sounds, time signatures, and drum patterns.
-/// Uses Polyphonica real-time synthesis engine for precise, low-latency audio generation.
+/// Advanced metronome and drum machine with multiple click sounds, time signatures,
+/// and drum patterns. Uses Polyphonica real-time synthesis engine for precise,
+/// low-latency audio generation.
+///
+/// # Features
+///
+/// **Currently Working:**
+/// - High-precision metronome with <1ms timing accuracy
+/// - Multiple click sounds (wood block, cowbell, hi-hat, etc.)
+/// - Time signature support (4/4, 3/4, 2/4, 6/8, and more)
+/// - Tempo control from 60-200 BPM with slider and preset buttons
+/// - Pattern mode with drum patterns from 6 genres (Rock, Jazz, Latin, Funk, Pop, Electronic)
+/// - Real-time beat visualization with colored circles
+/// - Volume control and accent beats on first beat
+/// - Test buttons for previewing sounds
+/// - Play/pause/stop transport controls
+///
+/// **Limitations:**
+/// - No pattern editing or custom pattern creation in GUI
+/// - No MIDI synchronization or export
+/// - No recording or playback of practice sessions
+/// - No advanced tempo features (gradual tempo changes, tap tempo)
+/// - No customizable key bindings
+/// - No multiple pattern layers or complex arrangements
+///
+/// # Usage
+///
+/// Run with: `cargo run --bin guitar-buddy`
+///
+/// The GUI provides intuitive controls for all features. Switch between metronome
+/// mode (simple click) and pattern mode (drum patterns) using the toggle button.
 use polyphonica::RealtimeEngine;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, Stream, StreamConfig};

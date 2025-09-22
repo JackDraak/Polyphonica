@@ -5,17 +5,33 @@
 /// access to application parameters. The architecture separates concerns:
 ///
 /// - **AppConfig**: Main application configuration structure
-/// - **Persistence**: Configuration loading and saving
+/// - **Persistence**: Configuration loading and saving (JSON-based)
 /// - **Validation**: Parameter validation and bounds checking
 /// - **Defaults**: Sensible default values for all settings
+///
+/// # Current Implementation Status
+///
+/// **Working Features:**
+/// - Basic configuration structures for metronome, audio, UI, and patterns
+/// - JSON serialization/deserialization
+/// - Default value generation
+/// - Configuration file loading and saving
+///
+/// **Limitations (Prototype Stage):**
+/// - No advanced validation beyond basic bounds checking
+/// - No configuration migration for version changes
+/// - No user-friendly configuration UI (manual JSON editing required)
+/// - No configuration validation at runtime
+/// - No backup/restore functionality
+/// - Limited error handling for malformed configuration files
 ///
 /// # Design Principles
 ///
 /// 1. **Type Safety**: Strong typing for all configuration parameters
-/// 2. **Validation**: Automatic bounds checking and parameter validation
+/// 2. **Validation**: Automatic bounds checking (basic implementation)
 /// 3. **Persistence**: Automatic loading/saving of configuration
 /// 4. **Extensible**: Easy to add new configuration parameters
-/// 5. **Backwards Compatible**: Graceful handling of old configuration files
+/// 5. **Backwards Compatible**: Graceful handling of old files (planned)
 ///
 /// # Usage Example
 ///

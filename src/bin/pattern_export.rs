@@ -3,6 +3,36 @@
 /// This utility exports all code-based patterns to the JSON catalog format,
 /// ensuring external tools have access to the complete pattern library while
 /// maintaining code as the primary source of truth.
+///
+/// # Purpose
+///
+/// Maintains compatibility between the new modular pattern system (written in Rust)
+/// and external tools that expect the original JSON catalog format. This bridges
+/// the gap during the transition to code-based patterns as the primary source.
+///
+/// # Features
+///
+/// - Exports 16+ patterns from all genre collections
+/// - Generates valid JSON catalog format
+/// - Includes pattern metadata (display names, descriptions)
+/// - Automatic deduplication of patterns with same names
+/// - Preserves catalog versioning information
+///
+/// # Usage
+///
+/// ```bash
+/// # Export to default filename
+/// cargo run --bin pattern-export
+///
+/// # Export to custom filename
+/// cargo run --bin pattern-export custom_catalog.json
+/// ```
+///
+/// # Output Format
+///
+/// Generates a JSON file compatible with the original `drum_samples_catalog.json`
+/// format, containing all patterns from the code-based library with proper
+/// metadata and version information.
 use polyphonica::patterns::{
     ElectronicPatterns, FunkPatterns, JazzPatterns, LatinPatterns, PatternCatalog, PatternLibrary,
     PopPatterns, RockPatterns,

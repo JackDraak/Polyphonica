@@ -1,3 +1,122 @@
+//! # Polyphonica - Real-time Audio Synthesis and Pattern Engine
+//!
+//! Polyphonica is a comprehensive Rust library for real-time audio synthesis, musical timing,
+//! and pattern-based music generation. Originally developed as the audio engine for Guitar Buddy,
+//! it provides modular, high-performance components for musical applications.
+//!
+//! ## Project Status: Prototype/Development
+//!
+//! This library is currently in active development. Core functionality is stable and tested,
+//! but APIs may change between versions. Use in production environments at your own discretion.
+//!
+//! ## Core Features
+//!
+//! - **Real-time Audio Synthesis**: Polyphonic synthesis engine with multiple waveforms
+//! - **Precision Musical Timing**: <1ms beat accuracy with discrete scheduling
+//! - **Pattern Management**: Comprehensive drum pattern library with 6+ genres
+//! - **Sample Management**: Efficient audio sample loading and caching
+//! - **Modular Architecture**: 13 focused modules for maintainable code
+//!
+//! ## Quick Start
+//!
+//! ```rust
+//! use polyphonica::{RealtimeEngine, Waveform, AdsrEnvelope};
+//!
+//! // Create a real-time synthesis engine
+//! let mut engine = RealtimeEngine::new(44100.0);
+//!
+//! // Define an envelope
+//! let envelope = AdsrEnvelope {
+//!     attack_secs: 0.1,
+//!     decay_secs: 0.1,
+//!     sustain_level: 0.7,
+//!     release_secs: 0.3,
+//! };
+//!
+//! // Trigger a note
+//! let voice_id = engine.trigger_note(Waveform::Sine, 440.0, envelope);
+//!
+//! // Process audio in your audio callback
+//! let mut buffer = vec![0.0; 1024];
+//! engine.process_buffer(&mut buffer);
+//! ```
+//!
+//! ## Module Organization
+//!
+//! ### Core Audio Engine (`lib.rs`)
+//! - Real-time polyphonic synthesis engine
+//! - Waveform generation (sine, square, sawtooth, triangle, pulse, noise, samples)
+//! - ADSR envelope processing
+//! - Audio timeline rendering
+//! - Voice management and allocation
+//!
+//! ### Timing System (`timing::`)
+//! - High-precision beat timing with <1ms accuracy
+//! - Discrete scheduling to prevent drift
+//! - Metronome and pattern player implementations
+//! - Beat event tracking and observation
+//!
+//! ### Pattern Management (`patterns::`)
+//! - Comprehensive drum pattern library
+//! - Pattern builders with fluent API
+//! - Genre-specific collections (Rock, Jazz, Latin, Funk, Pop, Electronic)
+//! - JSON import/export capabilities
+//! - Real-time pattern state management
+//!
+//! ### Sample Management (`samples::`)
+//! - Efficient WAV file loading and caching
+//! - LRU cache with configurable memory limits
+//! - Zero-allocation real-time sample playback
+//! - DrumKit collections with velocity curves
+//! - Sample metadata and catalog management
+//!
+//! ### Audio Processing (`audio::`)
+//! - Audio streaming and device management
+//! - Buffer format conversion utilities
+//! - Audio effects and processing chains (planned)
+//!
+//! ### Visualization (`visualization::`)
+//! - Beat visualization components
+//! - Real-time audio spectrum analysis (planned)
+//! - Waveform display utilities (planned)
+//!
+//! ### Configuration (`config::`)
+//! - Application settings and preferences
+//! - JSON-based configuration persistence
+//! - Audio device configuration
+//!
+//! ## Performance Characteristics
+//!
+//! - **Voice Polyphony**: Up to 32 simultaneous voices
+//! - **Timing Precision**: <1ms beat-to-beat consistency
+//! - **Memory Management**: Zero-allocation audio processing
+//! - **Sample Rates**: Supports 8kHz to 192kHz
+//! - **Thread Safety**: Lock-free audio processing paths
+//!
+//! ## Audio Formats Supported
+//!
+//! - **Generation**: All waveforms generated at any frequency
+//! - **Sample Loading**: WAV files (16/24/32-bit, mono/stereo)
+//! - **Output**: f32 samples in [-1.0, 1.0] range
+//! - **Real-time**: CPAL-compatible buffer processing
+//!
+//! ## Current Limitations
+//!
+//! - Sample loading limited to WAV format only
+//! - No built-in audio effects or filtering
+//! - Pattern system doesn't support real-time editing during playback
+//! - Visualization module is minimal (mainly beat indicators)
+//! - No MIDI input/output support
+//! - Configuration system is basic
+//!
+//! ## Examples and Applications
+//!
+//! See the `src/bin/` directory for complete examples:
+//! - `guitar-buddy`: Full GUI metronome and drum machine
+//! - `pattern-export`: Pattern library export utility
+//! - Various test applications demonstrating specific features
+//!
+
 use std::f32::consts::PI;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -65,43 +184,117 @@ fn generate_sample(waveform: &Waveform, phase: f32, time_secs: f32, target_frequ
     }
 }
 
+/// Waveform types supported by the synthesis engine
+///
+/// This enum defines all waveform types that can be generated or played back
+/// by the real-time synthesis engine. Each waveform has different characteristics
+/// suitable for different musical applications.
+///
+/// # Examples
+///
+/// ```rust
+/// use polyphonica::Waveform;
+///
+/// // Basic waveforms
+/// let sine = Waveform::Sine;
+/// let square = Waveform::Square;
+///
+/// // Pulse wave with 25% duty cycle
+/// let pulse = Waveform::Pulse { duty_cycle: 0.25 };
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Waveform {
+    /// Pure sine wave - smooth, fundamental tone
     Sine,
+    /// Square wave - rich in odd harmonics, classic electronic sound
     Square,
+    /// Sawtooth wave - rich in all harmonics, classic synth lead sound
     Sawtooth,
+    /// Triangle wave - similar to sine but with more harmonics
     Triangle,
+    /// Pulse wave with configurable duty cycle
+    ///
+    /// `duty_cycle` should be between 0.0 and 1.0, where 0.5 creates a square wave
     Pulse {
+        /// Duty cycle (0.0 to 1.0) - fraction of cycle that is high
         duty_cycle: f32,
     },
+    /// White noise - random values for percussion and sound effects
     Noise,
+    /// Audio sample with pitch shifting capability
+    ///
+    /// Used for melodic instruments where pitch shifting is desired
     Sample(SampleData),
     /// Drum sample played at natural speed without pitch shifting
+    ///
+    /// Optimized for percussive sounds where natural timbre is important
     DrumSample(SampleData),
 }
 
+/// Audio sample data container
+///
+/// Stores audio sample data along with metadata required for playback.
+/// Supports both looped and one-shot playback modes, with configurable
+/// pitch shifting capabilities.
+///
+/// # Examples
+///
+/// ```rust
+/// use polyphonica::SampleData;
+///
+/// # fn example() -> Result<(), polyphonica::SampleError> {
+/// // Load a sample from a WAV file
+/// let sample_data = SampleData::from_file("kick.wav", 60.0)?;
+///
+/// // Add loop points for sustained playback
+/// let looped_sample = sample_data.with_loop_points(1000, 5000)?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct SampleData {
+    /// Raw audio samples as f32 values in [-1.0, 1.0] range
     pub samples: Vec<f32>,
+    /// Sample rate in Hz (e.g., 44100)
     pub sample_rate: u32,
+    /// Base frequency for pitch shifting (Hz)
     pub base_frequency: f32,
+    /// Loop start point in samples (None for one-shot playback)
     pub loop_start: Option<usize>,
+    /// Loop end point in samples (None for one-shot playback)
     pub loop_end: Option<usize>,
+    /// Sample metadata and file information
     pub metadata: SampleMetadata,
 }
 
+/// Metadata associated with audio samples
+///
+/// Contains file information and audio characteristics for loaded samples.
+/// This metadata is preserved when samples are loaded and can be used for
+/// display purposes or audio processing decisions.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SampleMetadata {
+    /// Original filename (without path)
     pub filename: String,
+    /// Duration of the sample in seconds
     pub duration_secs: f32,
+    /// Number of audio channels (1 for mono, 2 for stereo)
     pub channels: u16,
+    /// Bit depth of original file (16, 24, or 32)
     pub bits_per_sample: u16,
 }
 
+/// Errors that can occur during sample loading and processing
+///
+/// This enum covers all error conditions that may arise when working with
+/// audio samples, from file I/O issues to format compatibility problems.
 #[derive(Debug)]
 pub enum SampleError {
+    /// File system or I/O related error
     IoError(std::io::Error),
+    /// Invalid or corrupted audio file format
     FormatError(String),
+    /// Audio format not supported by the engine
     UnsupportedFormat(String),
 }
 
@@ -308,23 +501,133 @@ impl SampleData {
     }
 }
 
+/// ADSR (Attack, Decay, Sustain, Release) envelope definition
+///
+/// Defines the amplitude envelope shape for audio synthesis. ADSR envelopes
+/// are fundamental to creating natural-sounding musical instruments and effects.
+///
+/// # Envelope Phases
+///
+/// 1. **Attack**: Time to reach peak amplitude from zero
+/// 2. **Decay**: Time to fall from peak to sustain level
+/// 3. **Sustain**: Constant amplitude level while note is held
+/// 4. **Release**: Time to fade to zero after note is released
+///
+/// # Examples
+///
+/// ```rust
+/// use polyphonica::AdsrEnvelope;
+///
+/// // Piano-like envelope (quick attack, gradual decay)
+/// let piano = AdsrEnvelope {
+///     attack_secs: 0.01,
+///     decay_secs: 0.3,
+///     sustain_level: 0.4,
+///     release_secs: 0.8,
+/// };
+///
+/// // Organ-like envelope (no decay, full sustain)
+/// let organ = AdsrEnvelope {
+///     attack_secs: 0.1,
+///     decay_secs: 0.0,
+///     sustain_level: 1.0,
+///     release_secs: 0.2,
+/// };
+/// ```
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct AdsrEnvelope {
+    /// Time in seconds to reach peak amplitude from zero
     pub attack_secs: f32,
+    /// Time in seconds to decay from peak to sustain level
     pub decay_secs: f32,
+    /// Sustain amplitude level (0.0 to 1.0)
     pub sustain_level: f32,
+    /// Time in seconds to fade from sustain level to zero
     pub release_secs: f32,
 }
 
+/// A scheduled sound event with waveform, frequency sweep, and envelope
+///
+/// Represents a single audio event that can be rendered to a timeline.
+/// Supports frequency sweeps (glissando) and complex envelope shaping.
+/// Used primarily for non-real-time audio generation and composition.
+///
+/// # Examples
+///
+/// ```rust
+/// use polyphonica::{SoundEvent, Waveform, AdsrEnvelope};
+///
+/// // Simple constant-frequency tone
+/// let beep = SoundEvent {
+///     waveform: Waveform::Sine,
+///     start_frequency: 440.0,
+///     end_frequency: 440.0,  // Same as start = no sweep
+///     duration_secs: 0.5,
+///     envelope: AdsrEnvelope {
+///         attack_secs: 0.1,
+///         decay_secs: 0.1,
+///         sustain_level: 0.7,
+///         release_secs: 0.3,
+///     },
+/// };
+///
+/// // Frequency sweep (glissando)
+/// let sweep = SoundEvent {
+///     waveform: Waveform::Sawtooth,
+///     start_frequency: 220.0,
+///     end_frequency: 880.0,  // Octave sweep
+///     duration_secs: 2.0,
+///     envelope: beep.envelope.clone(),
+/// };
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct SoundEvent {
+    /// Waveform type to generate
     pub waveform: Waveform,
+    /// Starting frequency in Hz
     pub start_frequency: f32,
+    /// Ending frequency in Hz (can be same as start for constant pitch)
     pub end_frequency: f32,
+    /// Duration of the event in seconds
     pub duration_secs: f32,
+    /// Amplitude envelope to apply
     pub envelope: AdsrEnvelope,
 }
 
+/// Generate audio samples for a single waveform
+///
+/// Creates a buffer of audio samples for the specified waveform, frequency, and duration.
+/// This is a utility function for non-real-time audio generation. For real-time synthesis,
+/// use the `RealtimeEngine` instead.
+///
+/// # Parameters
+///
+/// - `waveform`: The type of waveform to generate
+/// - `frequency`: Frequency in Hz (valid range: 0.1 to 20000 Hz)
+/// - `duration_secs`: Duration in seconds (must be non-negative)
+/// - `sample_rate`: Sample rate in Hz (valid range: 1 to 192000 Hz)
+///
+/// # Returns
+///
+/// Vector of f32 samples in the range [-1.0, 1.0]. Returns empty vector if parameters are invalid.
+///
+/// # Examples
+///
+/// ```rust
+/// use polyphonica::{generate_wave, Waveform};
+///
+/// // Generate 1 second of 440Hz sine wave
+/// let samples = generate_wave(Waveform::Sine, 440.0, 1.0, 44100);
+/// assert_eq!(samples.len(), 44100);
+///
+/// // Generate pulse wave with 25% duty cycle
+/// let pulse = generate_wave(
+///     Waveform::Pulse { duty_cycle: 0.25 },
+///     220.0,
+///     0.5,
+///     48000
+/// );
+/// ```
 pub fn generate_wave(
     waveform: Waveform,
     frequency: f32,
@@ -765,6 +1068,73 @@ impl Clone for Voice {
 }
 
 /// Real-time polyphonic synthesis engine
+///
+/// The core engine for real-time audio synthesis supporting up to 32 simultaneous voices.
+/// Designed for use in audio applications requiring low-latency, high-quality synthesis
+/// with automatic voice management and allocation.
+///
+/// # Features
+///
+/// - **Polyphonic synthesis**: Up to 32 simultaneous voices
+/// - **Voice allocation**: Automatic voice stealing when all voices are in use
+/// - **Multiple waveforms**: Sine, square, sawtooth, triangle, pulse, noise, and samples
+/// - **ADSR envelopes**: Per-voice envelope processing
+/// - **Real-time safe**: Zero-allocation audio processing
+/// - **Master volume**: Global volume control with atomic updates
+/// - **Stereo output**: Supports both mono and stereo buffer processing
+///
+/// # Usage Pattern
+///
+/// 1. Create engine with desired sample rate
+/// 2. Configure master volume and parameters
+/// 3. Trigger notes as needed (returns voice IDs for control)
+/// 4. Process audio buffers in your audio callback
+/// 5. Release notes or use panic stop as needed
+///
+/// # Examples
+///
+/// ```rust
+/// use polyphonica::{RealtimeEngine, Waveform, AdsrEnvelope};
+///
+/// // Create engine for 44.1kHz audio
+/// let mut engine = RealtimeEngine::new(44100.0);
+///
+/// // Set master volume to 50%
+/// engine.set_master_volume(0.5);
+///
+/// // Define a piano-like envelope
+/// let envelope = AdsrEnvelope {
+///     attack_secs: 0.01,
+///     decay_secs: 0.3,
+///     sustain_level: 0.4,
+///     release_secs: 0.8,
+/// };
+///
+/// // Trigger a note (returns voice ID for later control)
+/// let voice_id = engine.trigger_note(Waveform::Sine, 440.0, envelope);
+///
+/// // Process audio in your callback
+/// let mut buffer = vec![0.0; 1024];
+/// engine.process_buffer(&mut buffer);
+///
+/// // Release the note when done
+/// if let Some(id) = voice_id {
+///     engine.release_note(id);
+/// }
+/// ```
+///
+/// # Thread Safety
+///
+/// The engine is designed for single-threaded use within an audio callback.
+/// Master volume can be updated from other threads using atomic operations.
+/// Voice triggering and buffer processing should happen on the same thread.
+///
+/// # Performance Notes
+///
+/// - Audio processing is allocation-free once voices are allocated
+/// - Voice stealing uses a simple oldest-voice strategy
+/// - All samples are clamped to [-1.0, 1.0] to prevent clipping
+/// - Inactive voices are automatically detected and recycled
 pub struct RealtimeEngine {
     /// Voice pool for polyphonic synthesis
     voices: [Voice; MAX_VOICES],

@@ -9,13 +9,28 @@
 /// - **Color Schemes**: Customizable color coding for different beat states
 /// - **Layout**: Beat arrangement and spacing calculations
 ///
+/// # Current Implementation Status
+///
+/// **Working Features:**
+/// - Basic beat circle visualization with color coding
+/// - Time signature display (4/4, 3/4, 2/4, 6/8, etc.)
+/// - Beat accent highlighting
+/// - Current beat position indication
+///
+/// **Limitations (Prototype Stage):**
+/// - No waveform display or spectrum analysis
+/// - Limited to simple circular beat indicators
+/// - No advanced visualization effects or animations
+/// - Color schemes are basic (not fully customizable)
+/// - No accessibility features implemented yet
+///
 /// # Design Principles
 ///
 /// 1. **GUI Framework Agnostic**: Core logic independent of egui, gtk, etc.
 /// 2. **Event-Driven**: Updates triggered by beat events, not polling
-/// 3. **Configurable**: Customizable colors, layouts, and display options
+/// 3. **Configurable**: Customizable colors, layouts, and display options (planned)
 /// 4. **Real-time**: Efficient updates suitable for audio-rate beat events
-/// 5. **Accessible**: Support for different visualization modes and contrast levels
+/// 5. **Accessible**: Support for different visualization modes (planned)
 ///
 /// # Usage Example
 ///
