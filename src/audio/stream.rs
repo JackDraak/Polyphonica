@@ -123,6 +123,12 @@ pub struct AudioStreamBuilder {
     device_name: Option<String>,
 }
 
+impl Default for AudioStreamBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AudioStreamBuilder {
     pub fn new() -> Self {
         Self {
@@ -153,7 +159,7 @@ impl AudioStreamBuilder {
 
     pub fn build_with_callback<F>(
         self,
-        callback: F,
+        _callback: F,
     ) -> Result<AudioStream, Box<dyn std::error::Error>>
     where
         F: FnMut(&mut [f32]) + Send + 'static,

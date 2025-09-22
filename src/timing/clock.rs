@@ -211,11 +211,7 @@ impl DiscreteScheduler {
             }
             Some(scheduled_time) => {
                 // Check if scheduled time has arrived
-                if now >= scheduled_time {
-                    true
-                } else {
-                    false
-                }
+                now >= scheduled_time
             }
         }
     }

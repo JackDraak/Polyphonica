@@ -55,8 +55,8 @@ fn generate_sample(waveform: &Waveform, phase: f32, time_secs: f32, target_frequ
             let seed = ((time_secs * 1000.0) as u32)
                 .wrapping_mul(1103515245)
                 .wrapping_add(12345);
-            let noise = (seed % 32768) as f32 / 16384.0 - 1.0;
-            noise
+            
+            (seed % 32768) as f32 / 16384.0 - 1.0
         }
         Waveform::Sample(sample_data) => {
             sample_data.get_sample_at_time(time_secs, target_frequency)
@@ -545,6 +545,12 @@ pub struct EnvelopeState {
     pub release_level: f32, // Level when release was triggered
 }
 
+impl Default for EnvelopeState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EnvelopeState {
     pub fn new() -> Self {
         EnvelopeState {
@@ -726,7 +732,7 @@ impl Voice {
 
         // Update phase for next sample
         self.phase += 2.0 * PI * self.frequency / sample_rate;
-        self.phase = self.phase % (2.0 * PI);
+        self.phase %= 2.0 * PI;
 
         // Update sample time for sample-based waveforms
         self.sample_time += dt;

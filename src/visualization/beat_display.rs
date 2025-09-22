@@ -314,6 +314,10 @@ impl BeatDisplay {
     }
 }
 
+/// Type alias for legacy beat visual tuple
+/// Format: (beat_number, is_current, is_accent, color_rgb, symbol_char)
+pub type LegacyBeatVisual = (u8, bool, bool, (u8, u8, u8), char);
+
 /// Legacy compatibility for transitioning from GUI component
 ///
 /// This provides similar functionality to the old BeatVisualizationPanel::show()
@@ -326,7 +330,7 @@ pub fn get_legacy_beat_visuals(
     is_playing: bool,
     accent_first_beat: bool,
     pattern_mode: bool,
-) -> Vec<(u8, bool, bool, (u8, u8, u8), char)> {
+) -> Vec<LegacyBeatVisual> {
     let mut display = BeatDisplay::new(time_signature);
     display.set_mode(if pattern_mode {
         VisualizationMode::Pattern

@@ -254,7 +254,7 @@ impl PatternBuilder {
             return Err(self
                 .errors
                 .into_iter()
-                .map(|msg| PatternValidationError::InvalidName(msg))
+                .map(PatternValidationError::InvalidName)
                 .collect());
         }
 

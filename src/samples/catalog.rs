@@ -270,14 +270,14 @@ impl SampleCatalog {
         // Update category index
         self.category_index
             .entry(sample.category.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(name.clone());
 
         // Update tag index
         for tag in &sample.tags {
             self.tag_index
                 .entry(tag.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(name.clone());
         }
 
@@ -300,7 +300,7 @@ impl SampleCatalog {
                     .filter_map(|name| self.samples.get(name))
                     .collect()
             })
-            .unwrap_or_else(Vec::new)
+            .unwrap_or_default()
     }
 
     /// Search samples by tag
@@ -313,7 +313,7 @@ impl SampleCatalog {
                     .filter_map(|name| self.samples.get(name))
                     .collect()
             })
-            .unwrap_or_else(Vec::new)
+            .unwrap_or_default()
     }
 
     /// Get all samples

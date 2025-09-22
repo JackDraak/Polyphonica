@@ -10,7 +10,7 @@ use polyphonica::timing::{
 /// Phase 2: Full accompaniment with drums, bass lines, and chord progressions
 ///
 /// Uses Polyphonica real-time synthesis engine for precise, low-latency audio generation.
-use polyphonica::{AdsrEnvelope, RealtimeEngine, Waveform};
+use polyphonica::RealtimeEngine;
 // Audio stream available for future use
 // Visualization imports available for future use
 // Configuration management available for future use
@@ -21,15 +21,10 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 // HashMap no longer needed with modular architecture
 
-/// Drum pattern system for Phase 2 - now using polyphonica::patterns module
-
-/// Pattern playback state - now using polyphonica::patterns::PatternState
-/// (local implementation removed)
-
-// DrumSampleManager replaced with modular audio system
-
-// ClickTypeAudioExt trait moved to polyphonica::audio::synthesis module
-// Legacy functions available as get_legacy_sound_params() and get_legacy_accent_sound()
+// Note: Pattern system now uses polyphonica::patterns module
+// Note: BeatTracker now uses polyphonica::timing::BeatTracker
+// Note: DrumSampleManager replaced with modular audio system
+// Note: ClickTypeAudioExt trait moved to polyphonica::audio::synthesis module
 
 /// Metronome state and timing control
 struct MetronomeState {
@@ -249,11 +244,10 @@ mod gui_components {
                     if ui.button("▶ Start").clicked() {
                         metronome.start();
                     }
-                    if metronome.last_beat_time.is_some() {
-                        if ui.button("▶ Resume").clicked() {
+                    if metronome.last_beat_time.is_some()
+                        && ui.button("▶ Resume").clicked() {
                             metronome.resume();
                         }
-                    }
                 }
             });
         }
@@ -626,70 +620,6 @@ impl GuitarBuddy {
         engine.trigger_note_with_volume(waveform, frequency, envelope, volume);
     }
 
-    fn get_accent_sound(&self, metronome: &MetronomeState) -> (Waveform, f32, AdsrEnvelope) {
-        // Choose accent sound based on the current click type
-        match metronome.click_type {
-            // For drum samples, use kick drum for accent
-            ClickType::AcousticSnare
-            | ClickType::HiHatClosed
-            | ClickType::HiHatOpen
-            | ClickType::RimShot
-            | ClickType::Stick
-            | ClickType::HiHatLoose
-            | ClickType::HiHatVeryLoose
-            | ClickType::CymbalSplash
-            | ClickType::CymbalRoll
-            | ClickType::Ride
-            | ClickType::RideBell => {
-                get_legacy_sound_params(ClickType::AcousticKick, &metronome.audio_samples)
-            }
-            // For kick drum variants, use snare for accent
-            ClickType::AcousticKick | ClickType::KickTight => {
-                get_legacy_sound_params(ClickType::AcousticSnare, &metronome.audio_samples)
-            }
-            // For synthetic sounds, use higher pitch and different waveform
-            ClickType::WoodBlock => (
-                Waveform::Square, // Different waveform
-                1600.0,           // Higher pitch
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.1,
-                    sustain_level: 0.0,
-                    release_secs: 0.05,
-                },
-            ),
-            ClickType::DigitalBeep => (
-                Waveform::Square, // Different waveform
-                2000.0,           // Much higher pitch
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.12,
-                    sustain_level: 0.0,
-                    release_secs: 0.06,
-                },
-            ),
-            ClickType::Cowbell => (
-                Waveform::Triangle, // Different waveform
-                1600.0,             // Higher pitch
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.2,
-                    sustain_level: 0.0,
-                    release_secs: 0.15,
-                },
-            ),
-            ClickType::ElectroClick => (
-                Waveform::Sine, // Different waveform
-                2400.0,         // Much higher pitch
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.06,
-                    sustain_level: 0.0,
-                    release_secs: 0.04,
-                },
-            ),
-        }
-    }
 
     /// Trigger a specific drum sample for pattern playback
     fn trigger_pattern_sample(

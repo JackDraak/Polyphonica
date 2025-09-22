@@ -186,7 +186,7 @@ impl PatternState {
                 // Check if it's time for the next beat
                 if now >= next_time {
                     let current_beat = &pattern.beats[self.current_beat_index];
-                    let _triggers = vec![PatternTrigger {
+                    let _triggers = [PatternTrigger {
                         click_type: current_beat.samples[0], // Take first sample for now
                         is_accent: current_beat.accent,
                         beat_position: current_beat.beat_position,

@@ -401,7 +401,7 @@ impl ConfigManager {
 
     /// Set metronome tempo with validation and optional auto-save
     pub fn set_tempo(&mut self, tempo_bpm: f32) -> Result<(), ConfigError> {
-        if tempo_bpm < 40.0 || tempo_bpm > 200.0 {
+        if !(40.0..=200.0).contains(&tempo_bpm) {
             return Err(ConfigError::ValidationError(format!(
                 "Tempo {} BPM is out of range (40-200)",
                 tempo_bpm
@@ -413,7 +413,7 @@ impl ConfigManager {
 
     /// Set metronome volume with validation and optional auto-save
     pub fn set_volume(&mut self, volume: f32) -> Result<(), ConfigError> {
-        if volume < 0.0 || volume > 1.0 {
+        if !(0.0..=1.0).contains(&volume) {
             return Err(ConfigError::ValidationError(format!(
                 "Volume {} is out of range (0.0-1.0)",
                 volume

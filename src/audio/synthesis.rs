@@ -333,6 +333,12 @@ pub struct LegacySampleAdapter {
     samples: HashMap<ClickType, SampleData>,
 }
 
+impl Default for LegacySampleAdapter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LegacySampleAdapter {
     pub fn new() -> Self {
         Self {

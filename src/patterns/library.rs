@@ -43,13 +43,13 @@ impl PatternLibrary {
         // Update genre index
         self.genre_index
             .entry(pattern.metadata.genre.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(name.clone());
 
         // Update difficulty index
         self.difficulty_index
             .entry(pattern.metadata.difficulty)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(name.clone());
 
         // Store pattern
@@ -76,7 +76,7 @@ impl PatternLibrary {
                     .filter_map(|name| self.patterns.get(name))
                     .collect()
             })
-            .unwrap_or_else(Vec::new)
+            .unwrap_or_default()
     }
 
     /// Get patterns by difficulty
@@ -89,7 +89,7 @@ impl PatternLibrary {
                     .filter_map(|name| self.patterns.get(name))
                     .collect()
             })
-            .unwrap_or_else(Vec::new)
+            .unwrap_or_default()
     }
 
     /// Search patterns by name or tag
