@@ -486,6 +486,7 @@ fn run_test_suite(output_dir: &PathBuf, sample_rate: u32, play: bool, volume: f3
             Waveform::Pulse { duty_cycle } => format!("pulse_{:.0}pct_440hz.wav", duty_cycle * 100.0),
             Waveform::Noise => "noise_440hz.wav".to_string(),
             Waveform::Sample(_) => "sample_440hz.wav".to_string(),
+            Waveform::DrumSample(_) => "drum_sample_440hz.wav".to_string(),
         };
         write_wav_file(&samples, sample_rate, &output_dir.join(filename))?;
     }

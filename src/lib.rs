@@ -298,7 +298,7 @@ impl SampleData {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct AdsrEnvelope {
     pub attack_secs: f32,
     pub decay_secs: f32,
@@ -946,6 +946,11 @@ impl Default for RealtimeEngine {
         Self::new(44100.0)
     }
 }
+
+// Timing subsystem for precise musical timing
+pub mod timing;
+pub mod samples;
+pub mod patterns;
 
 #[cfg(test)]
 mod tests {
