@@ -14,7 +14,6 @@ use std::time::Duration;
 #[derive(Clone)]
 struct AppState {
     engine: Arc<Mutex<RealtimeEngine>>,
-    is_playing: Arc<Mutex<bool>>,
     current_waveform: Arc<Mutex<WaveformType>>,
     frequency: Arc<Mutex<f32>>,
     master_volume: Arc<Mutex<f32>>,
@@ -92,7 +91,6 @@ impl PolyphonicaDemo {
         // Create shared state
         let app_state = AppState {
             engine: engine.clone(),
-            is_playing: Arc::new(Mutex::new(false)),
             current_waveform: Arc::new(Mutex::new(WaveformType::Sine)),
             frequency: Arc::new(Mutex::new(440.0)),
             master_volume: Arc::new(Mutex::new(0.5)),

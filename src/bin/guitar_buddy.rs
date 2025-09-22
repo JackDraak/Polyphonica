@@ -109,18 +109,17 @@ impl DrumSampleManager {
         self.samples.get(click_type)
     }
 
-    fn has_sample(&self, click_type: &ClickType) -> bool {
-        self.samples.contains_key(click_type)
-    }
 }
 
 /// Beat event for coupling audio triggers with visualizer updates
+/// Note: samples and timestamp fields are populated but not yet used -
+/// they're intended for future analysis and debugging features
 #[derive(Debug, Clone)]
 struct BeatEvent {
     beat_number: u8,         // 1-based beat number (1, 2, 3, 4)
     accent: bool,            // Whether this beat is accented
-    samples: Vec<ClickType>, // Audio samples that were triggered
-    timestamp: Instant,      // When this beat was triggered
+    samples: Vec<ClickType>, // Audio samples that were triggered (for future use)
+    timestamp: Instant,      // When this beat was triggered (for future use)
 }
 
 /// Beat tracker - captures audio trigger events for visualizer coupling
@@ -160,10 +159,6 @@ impl BeatTracker {
         }
     }
 
-    /// Get last beat timestamp for timing analysis
-    fn get_last_beat_time(&self) -> Option<Instant> {
-        self.current_beat.as_ref().map(|event| event.timestamp)
-    }
 }
 
 /// Different metronome click sound types
@@ -476,14 +471,6 @@ impl MetronomeState {
         }
     }
 
-    /// Get volume for current beat (accent first beat if enabled)
-    fn get_beat_volume(&self) -> f32 {
-        if self.accent_first_beat && self.current_beat == 1 {
-            (self.volume * 1.5).min(1.0) // 50% louder for first beat
-        } else {
-            self.volume
-        }
-    }
 
     /// Set drum pattern and switch to pattern mode
     fn set_pattern(&mut self, pattern: DrumPattern) {

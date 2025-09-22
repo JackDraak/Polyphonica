@@ -21,7 +21,6 @@ impl TimeSignature {
 
 #[derive(Debug, Clone)]
 struct DrumPattern {
-    name: String,
     time_signature: TimeSignature,
     beats: Vec<DrumPatternBeat>,
 }
@@ -29,7 +28,6 @@ struct DrumPattern {
 impl DrumPattern {
     fn basic_rock() -> Self {
         Self {
-            name: "Basic Rock Beat".to_string(),
             time_signature: TimeSignature::new(4, 4),
             beats: vec![
                 DrumPatternBeat { beat_position: 1.0, accent: true },

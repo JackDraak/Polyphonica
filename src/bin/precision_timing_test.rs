@@ -23,7 +23,6 @@ impl TimeSignature {
 
 #[derive(Debug, Clone)]
 struct DrumPattern {
-    name: String,
     time_signature: TimeSignature,
     beats: Vec<DrumPatternBeat>,
 }
@@ -31,7 +30,6 @@ struct DrumPattern {
 impl DrumPattern {
     fn basic_rock() -> Self {
         Self {
-            name: "Basic Rock Beat".to_string(),
             time_signature: TimeSignature::new(4, 4),
             beats: vec![
                 DrumPatternBeat { beat_position: 1.0, accent: true },
@@ -179,21 +177,6 @@ impl PatternState {
         self.next_beat_time = Some(current_time + Duration::from_millis(interval_ms as u64));
     }
 
-    fn get_current_beat_position(&self) -> f32 {
-        if let Some(ref pattern) = self.current_pattern {
-            if !pattern.beats.is_empty() && self.current_beat_index < pattern.beats.len() {
-                pattern.beats[self.current_beat_index].beat_position
-            } else {
-                1.0
-            }
-        } else {
-            1.0
-        }
-    }
-
-    fn get_current_beat_number(&self) -> u8 {
-        self.get_current_beat_position().floor() as u8
-    }
 }
 
 // Metronome state (simplified for testing)

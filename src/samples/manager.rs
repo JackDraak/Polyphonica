@@ -27,11 +27,16 @@ use super::catalog::SampleMetadata;
 /// # Usage in Audio Callback
 ///
 /// ```rust
+/// use polyphonica::samples::SampleManager;
+/// use polyphonica::RealtimeEngine;
+///
+/// # fn example(manager: &SampleManager, engine: &mut RealtimeEngine) {
 /// // In real-time audio callback
 /// if let Some(trigger) = manager.get_trigger("kick") {
 ///     // Trigger sample with zero allocation
-///     engine.trigger_waveform(trigger.waveform, trigger.frequency, trigger.envelope);
+///     engine.trigger_note(trigger.waveform.clone(), trigger.frequency, trigger.envelope.clone());
 /// }
+/// # }
 /// ```
 pub struct SampleManager {
     /// Sample library for loading

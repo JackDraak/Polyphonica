@@ -361,7 +361,7 @@ impl Default for PatternState {
 mod tests {
     use super::*;
     use crate::timing::TimeSignature;
-    use crate::patterns::types::{DrumPatternBeat, PatternGenre};
+    use crate::patterns::types::DrumPatternBeat;
 
     fn create_test_pattern() -> DrumPattern {
         DrumPattern::new("test", TimeSignature::new(4, 4))

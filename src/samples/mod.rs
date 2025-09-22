@@ -19,14 +19,20 @@
 /// # Usage Example
 ///
 /// ```rust
-/// use polyphonica::samples::{SampleLibrary, SampleManager, DrumKit};
+/// use polyphonica::samples::{SampleLibrary, SampleManager};
 ///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let mut library = SampleLibrary::new();
-/// let drumkit = DrumKit::acoustic_kit_01();
-/// library.load_drumkit(&drumkit)?;
+/// // Load individual samples
+/// // library.load_sample_from_path("kick", "samples/kick.wav", 60.0)?;
 ///
-/// let mut manager = SampleManager::new(library);
-/// manager.trigger_sample("kick", 0.8)?;
+/// let manager = SampleManager::new(library);
+/// // Get trigger for real-time use
+/// if let Some(trigger) = manager.get_trigger("kick") {
+///     // Use trigger in audio callback
+/// }
+/// # Ok(())
+/// # }
 /// ```
 
 pub mod library;
