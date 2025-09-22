@@ -325,10 +325,9 @@ impl AudioSynthesis for ClickType {
     }
 }
 
-/// Legacy compatibility wrapper for transitioning from DrumSampleManager
+/// Legacy compatibility wrapper for DrumSampleManager
 ///
-/// This provides a temporary bridge while we migrate from the legacy DrumSampleManager
-/// to the modular SampleManager system.
+/// Provides compatibility with legacy systems while using the modular SampleManager system.
 pub struct LegacySampleAdapter {
     samples: HashMap<ClickType, SampleData>,
 }

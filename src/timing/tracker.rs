@@ -75,17 +75,14 @@ impl BeatTracker {
 
     /// Add an observer to receive beat events
     pub fn add_observer(&mut self, _observer: Box<dyn BeatObserver>) {
-        // Implementation will be added in Phase 1.5
     }
 
     /// Remove an observer
     pub fn remove_observer(&mut self, _observer_id: usize) {
-        // Implementation will be added in Phase 1.5
     }
 
     /// Get timing precision statistics
     pub fn get_precision_stats(&self) -> PrecisionStats {
-        // Implementation will be added in Phase 1.5
         PrecisionStats::default()
     }
 }

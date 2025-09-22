@@ -430,7 +430,7 @@ fn main() {
     println!("🧪 Guitar Buddy Precision Timing Test Suite");
     println!("===========================================");
     println!("Testing beat-to-beat consistency (<5ms precision requirement)");
-    println!("Note: Precision matters more than accuracy for musical timing\n");
+    println!("Precision matters more than accuracy for musical timing\n");
 
     let test_cases = [
         ("Slow", 60.0),
@@ -480,7 +480,7 @@ fn main() {
         println!("🔧 Review discrete beat scheduling implementation");
     }
 
-    println!("\n💡 Note: This test focuses on beat-to-beat consistency (precision)");
+    println!("\n💡 This test focuses on beat-to-beat consistency (precision)");
     println!("   rather than long-term accuracy. Small drift over many measures");
     println!("   is acceptable as long as each beat interval is consistent.");
 }

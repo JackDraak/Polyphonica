@@ -6,25 +6,14 @@ use polyphonica::timing::{
 };
 /// Guitar Buddy - Musical Practice Companion
 ///
-/// Phase 1: Advanced metronome with multiple click sounds and time signatures
-/// Phase 2: Full accompaniment with drums, bass lines, and chord progressions
-///
+/// Advanced metronome with multiple click sounds, time signatures, and drum patterns.
 /// Uses Polyphonica real-time synthesis engine for precise, low-latency audio generation.
 use polyphonica::RealtimeEngine;
-// Audio stream available for future use
-// Visualization imports available for future use
-// Configuration management available for future use
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, Stream, StreamConfig};
 use eframe::egui;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-// HashMap no longer needed with modular architecture
-
-// Note: Pattern system now uses polyphonica::patterns module
-// Note: BeatTracker now uses polyphonica::timing::BeatTracker
-// Note: DrumSampleManager replaced with modular audio system
-// Note: ClickTypeAudioExt trait moved to polyphonica::audio::synthesis module
 
 /// Metronome state and timing control
 struct MetronomeState {
@@ -36,15 +25,11 @@ struct MetronomeState {
     volume: f32,
     current_beat: u8,
     last_beat_time: Option<Instant>,
-    // Phase 2: Pattern support
     pattern_state: PatternState,
     pattern_mode: bool, // true = pattern mode, false = metronome mode
     pattern_library: PatternLibrary,
-    // Phase 2: Beat tracking for event-driven visualizer coupling
     beat_tracker: BeatTracker,
-    // New timing module (Phase 1 refactoring)
     new_metronome: NewMetronome,
-    // Audio synthesis adapter (Phase 7 refactoring)
     audio_samples: LegacySampleAdapter,
 }
 
@@ -760,8 +745,7 @@ impl eframe::App for GuitarBuddy {
 
             ui.separator();
 
-            // Phase 2 preview
-            ui.collapsing("Coming in Phase 2", |ui| {
+            ui.collapsing("Upcoming Features", |ui| {
                 ui.label("🥁 Drum patterns and backing tracks");
                 ui.label("🎹 Piano chord progressions");
                 ui.label("🎸 Bass line accompaniment");
@@ -842,7 +826,7 @@ where
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🎸 Guitar Buddy - Musical Practice Companion");
     println!("============================================");
-    println!("Phase 1: Advanced Metronome");
+    println!("Advanced Metronome with Pattern Support");
     println!("Initializing audio system...");
 
     let options = eframe::NativeOptions {

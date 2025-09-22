@@ -180,7 +180,6 @@ impl<'a> AccentSampleProvider for LegacyAccentAdapter<'a> {
 }
 
 /// Implementation for the new modular SampleManager
-// Note: SampleManager integration will be completed during guitar_buddy.rs update
 
 #[cfg(test)]
 mod tests {

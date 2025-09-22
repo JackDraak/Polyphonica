@@ -12,7 +12,6 @@ use std::sync::{Arc, Mutex};
 #[derive(Clone)]
 pub struct AppState {
     pub engine: Arc<Mutex<RealtimeEngine>>,
-    // Note: Additional state will be added during integration
 }
 
 impl AppState {
@@ -165,7 +164,6 @@ impl AudioStreamBuilder {
         F: FnMut(&mut [f32]) + Send + 'static,
     {
         // Implementation would create stream with custom callback
-        // For now, return an error as this is a placeholder
         Err("Custom callback streams not yet implemented".into())
     }
 }
