@@ -194,7 +194,41 @@ cargo run --bin guitar-buddy        # Launch GUI
 - Update integration tests to use module types
 - Remove type conversion bridge methods
 
-## **Project Status: 🎉 SUCCESSFULLY COMPLETED**
+## **⚠️ CRITICAL ARCHITECTURE ISSUE DISCOVERED**
+
+### **Pattern System Discrepancy Analysis:**
+During legacy cleanup review, discovered **dual pattern management systems** causing maintenance burden:
+
+**JSON Catalog (`drum_samples_catalog.json`)**:
+- 4 basic patterns: `basic_rock`, `shuffle`, `ballad`, `waltz`
+- External file-driven with sample metadata
+- Detailed envelope/sample mappings
+- Additional sample types: `kick_tight`, `hihat_loose`, `cymbal_splash`, `ride`, `ride_bell`
+
+**Code Module (`src/patterns/collections.rs`)**:
+- 13 comprehensive patterns across 6 genres (Rock, Jazz, Latin, Funk, Pop, Electronic)
+- Type-safe programmatic generation
+- Rich pattern builder API
+- Limited to basic ClickType enum
+
+### **Impact of Dual Systems:**
+- ❌ **Dead Code**: JSON patterns never loaded into application
+- ❌ **Missing Features**: Advanced patterns (13) not accessible via JSON system
+- ❌ **Maintenance Burden**: Two separate pattern systems to maintain
+- ❌ **User Confusion**: Inconsistent pattern availability between systems
+- ❌ **Type Mismatches**: JSON sample types not in ClickType enum
+
+### **Harmonization Required (Phase 5):**
+**Recommendation**: Unify around code-based patterns as primary source
+1. Extend ClickType enum with JSON sample types
+2. Generate JSON export from patterns module
+3. Add JSON import capability for external patterns
+4. Update guitar-buddy to use unified pattern API
+5. Remove redundant pattern definitions
+
+**Benefits**: Single source of truth, type safety preserved, external extensibility, reduced maintenance
+
+## **Project Status: 🎉 PHASE 1-4 COMPLETED**
 
 The polyphonica refactoring project has been **successfully completed** with all objectives met:
 
@@ -235,3 +269,62 @@ The user is asking me to "think carefully about how I proceed" - this suggests I
 5. Test after each cleanup to ensure nothing breaks
 
 Let me analyze the current state and identify specific legacy code that can be safely removed.
+
+## Phase 5: Pattern System Harmonization - COMPLETE ✅
+
+### Critical Architecture Issue Resolved
+
+**Problem Identified**: Dual pattern management systems causing maintenance burden:
+- JSON catalog (`drum_samples_catalog.json`): 4 basic patterns with additional sample types
+- Code-based patterns: 13+ comprehensive patterns across multiple genre collections
+- ClickType enum missing sample types from JSON catalog
+- No unified API for pattern access
+
+### Solution Implemented
+
+**1. Extended ClickType Enum** (`src/timing/types.rs`):
+- Added 7 new sample variants from JSON catalog:
+  - `KickTight`, `HiHatLoose`, `HiHatVeryLoose`
+  - `CymbalSplash`, `CymbalRoll`, `Ride`, `RideBell`
+- Maintains backward compatibility
+- All guitar-buddy functionality updated to handle new variants
+
+**2. Created Bidirectional JSON I/O** (`src/patterns/io.rs`):
+- `PatternCatalog` struct for JSON format compatibility
+- `JsonPattern` and `JsonBeat` for structured conversion
+- Bidirectional conversion between internal patterns and JSON format
+- Error handling with `PatternIoError` enum
+- Genre inference from pattern names
+- Sample name mapping between JSON strings and ClickType enum
+
+**3. Chose Code-Based Patterns as Primary Source**:
+- More comprehensive: 16 unique patterns vs 4 in JSON
+- Type-safe: Direct Rust enums vs string parsing
+- Extensible: Easy to add new patterns in code
+- Maintainable: Single source of truth
+
+**4. Created Pattern Export Utility** (`src/bin/pattern_export.rs`):
+- Exports all code-based patterns to JSON catalog format
+- Includes patterns from PatternLibrary and all genre collections
+- Maintains external tool compatibility
+- Automatic deduplication of patterns with same names
+- Preserves catalog metadata (version, description, creation date)
+
+### Results
+
+**Unified Pattern System**:
+- 16 unique patterns exported from comprehensive code library
+- All sample types harmonized between JSON and code
+- External tools can still access patterns via JSON export
+- No more dual maintenance burden
+- Type-safe pattern operations
+
+**Pattern Export Capability**:
+```bash
+cargo run --bin pattern-export [output_path]
+```
+Generates complete JSON catalog from code patterns.
+
+**Compilation Status**: ✅ All code compiles successfully with new ClickType variants
+
+This resolves the critical architectural discrepancy identified by the user and creates a unified, maintainable pattern management system.

@@ -11,12 +11,14 @@
 /// - `builder`: Tools for creating custom patterns
 /// - `state`: Pattern playback state management
 /// - `collections`: Genre-specific pattern collections
+/// - `io`: JSON import/export functionality
 
 pub mod types;
 pub mod library;
 pub mod builder;
 pub mod state;
 pub mod collections;
+pub mod io;
 
 // Re-export commonly used types
 pub use types::{DrumPattern, DrumPatternBeat, PatternMetadata};
@@ -24,3 +26,4 @@ pub use library::PatternLibrary;
 pub use builder::PatternBuilder;
 pub use state::PatternState;
 pub use collections::*;
+pub use io::{PatternCatalog, PatternIoError};

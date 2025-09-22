@@ -38,12 +38,17 @@ path = "src/bin/pattern_timing_test.rs"
 name = "precision-timing-test"
 path = "src/bin/precision_timing_test.rs"
 
+[[bin]]
+name = "pattern-export"
+path = "src/bin/pattern_export.rs"
+
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
 hound = "3.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
+thiserror = "1.0"
 rodio = "0.17"
 cpal = "0.15"
 egui = "0.29"

@@ -75,12 +75,34 @@ impl RockPatterns {
             .unwrap()
     }
 
+    /// Shuffle beat with triplet feel
+    pub fn shuffle() -> DrumPattern {
+        PatternBuilder::new("shuffle", TimeSignature::new(4, 4))
+            .display_name("Shuffle Beat")
+            .tempo_range(60, 120)
+            .genre(PatternGenre::Rock)
+            .difficulty(3)
+            .description("Triplet-based shuffle rhythm with swing feel")
+            .tag("rock").tag("shuffle").tag("triplet")
+            .beat(1.0).kick().hihat_closed().accent().build()
+            .beat(1.67).hihat_closed().build()  // Triplet subdivision
+            .beat(2.0).snare().hihat_closed().build()
+            .beat(2.67).hihat_closed().build()
+            .beat(3.0).kick().hihat_closed().build()
+            .beat(3.67).hihat_closed().build()
+            .beat(4.0).snare().hihat_closed().build()
+            .beat(4.67).hihat_closed().build()
+            .build()
+            .unwrap()
+    }
+
     /// Get all rock patterns
     pub fn all() -> Vec<DrumPattern> {
         vec![
             Self::basic_rock(),
             Self::power_rock(),
             Self::half_time_rock(),
+            Self::shuffle(),
         ]
     }
 }
@@ -273,11 +295,29 @@ impl PopPatterns {
             .unwrap()
     }
 
+    /// Simple ballad pattern (matches JSON catalog)
+    pub fn ballad() -> DrumPattern {
+        PatternBuilder::new("ballad", TimeSignature::new(4, 4))
+            .display_name("Ballad Beat")
+            .tempo_range(60, 90)
+            .genre(PatternGenre::Pop)
+            .difficulty(1)
+            .description("Simple ballad rhythm for slow songs")
+            .tag("ballad").tag("simple").tag("slow")
+            .beat(1.0).kick().hihat_closed().accent().build()
+            .beat(2.0).snare().hihat_closed().build()
+            .beat(3.0).kick().hihat_closed().build()
+            .beat(4.0).snare().hihat_closed().build()
+            .build()
+            .unwrap()
+    }
+
     /// Get all pop patterns
     pub fn all() -> Vec<DrumPattern> {
         vec![
             Self::basic_pop(),
             Self::pop_ballad(),
+            Self::ballad(),
         ]
     }
 }

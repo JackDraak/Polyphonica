@@ -87,6 +87,14 @@ impl DrumSampleManager {
             (ClickType::HiHatOpen, "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav"),
             (ClickType::RimShot, "samples/drums/acoustic/kit_01/drumkit-rimshot.wav"), // Dedicated rimshot sample
             (ClickType::Stick, "samples/drums/acoustic/kit_01/drumkit-stick.wav"),    // Dedicated stick sample
+            // Extended drum kit samples - map to available samples
+            (ClickType::KickTight, "samples/drums/acoustic/kit_01/drumkit-kick.wav"),     // Reuse kick for tight variant
+            (ClickType::HiHatLoose, "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav"), // Use open hi-hat for loose
+            (ClickType::HiHatVeryLoose, "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav"), // Use open hi-hat for very loose
+            (ClickType::CymbalSplash, "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav"), // Use open hi-hat for cymbal splash
+            (ClickType::CymbalRoll, "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav"),   // Use open hi-hat for cymbal roll
+            (ClickType::Ride, "samples/drums/acoustic/kit_01/drumkit-hihat.wav"),       // Use closed hi-hat for ride
+            (ClickType::RideBell, "samples/drums/acoustic/kit_01/drumkit-stick.wav"),   // Use stick for ride bell
         ];
 
         for (click_type, path) in sample_paths {
@@ -176,6 +184,14 @@ enum ClickType {
     HiHatOpen,      // Open hi-hat
     RimShot,        // Snare rim (using snare sample with envelope)
     Stick,          // Drumstick click (using hi-hat)
+    // Extended drum kit samples (from JSON catalog)
+    KickTight,      // Tight, punchy kick drum variant
+    HiHatLoose,     // Loose hi-hat with medium decay
+    HiHatVeryLoose, // Very loose hi-hat with long decay
+    CymbalSplash,   // Splash cymbal for accents
+    CymbalRoll,     // Cymbal roll/crash
+    Ride,           // Ride cymbal for rhythm patterns
+    RideBell,       // Ride bell for accents and highlights
 }
 
 impl ClickType {
@@ -193,6 +209,14 @@ impl ClickType {
             ClickType::HiHatOpen,
             ClickType::RimShot,
             ClickType::Stick,
+            // Extended drum kit samples
+            ClickType::KickTight,
+            ClickType::HiHatLoose,
+            ClickType::HiHatVeryLoose,
+            ClickType::CymbalSplash,
+            ClickType::CymbalRoll,
+            ClickType::Ride,
+            ClickType::RideBell,
         ]
     }
 
@@ -210,6 +234,14 @@ impl ClickType {
             ClickType::HiHatOpen => "Hi-Hat Open",
             ClickType::RimShot => "Rim Shot",
             ClickType::Stick => "Drum Stick",
+            // Extended drum kit samples
+            ClickType::KickTight => "Kick Tight",
+            ClickType::HiHatLoose => "Hi-Hat Loose",
+            ClickType::HiHatVeryLoose => "Hi-Hat Very Loose",
+            ClickType::CymbalSplash => "Cymbal Splash",
+            ClickType::CymbalRoll => "Cymbal Roll",
+            ClickType::Ride => "Ride Cymbal",
+            ClickType::RideBell => "Ride Bell",
         }
     }
 
@@ -265,6 +297,49 @@ impl ClickType {
             ClickType::Stick => AdsrEnvelope {
                 attack_secs: 0.001,
                 decay_secs: 0.1,     // Short stick click
+                sustain_level: 0.0,
+                release_secs: 0.001,
+            },
+            // Extended drum kit samples
+            ClickType::KickTight => AdsrEnvelope {
+                attack_secs: 0.001,
+                decay_secs: 0.8,     // Slightly shorter than regular kick
+                sustain_level: 0.0,
+                release_secs: 0.001,
+            },
+            ClickType::HiHatLoose => AdsrEnvelope {
+                attack_secs: 0.001,
+                decay_secs: 0.5,     // Medium decay for loose hi-hat
+                sustain_level: 0.0,
+                release_secs: 0.001,
+            },
+            ClickType::HiHatVeryLoose => AdsrEnvelope {
+                attack_secs: 0.001,
+                decay_secs: 1.2,     // Longer decay for very loose
+                sustain_level: 0.0,
+                release_secs: 0.001,
+            },
+            ClickType::CymbalSplash => AdsrEnvelope {
+                attack_secs: 0.001,
+                decay_secs: 1.5,     // Long splash decay
+                sustain_level: 0.0,
+                release_secs: 0.001,
+            },
+            ClickType::CymbalRoll => AdsrEnvelope {
+                attack_secs: 0.001,
+                decay_secs: 2.0,     // Extended roll decay
+                sustain_level: 0.0,
+                release_secs: 0.001,
+            },
+            ClickType::Ride => AdsrEnvelope {
+                attack_secs: 0.001,
+                decay_secs: 0.8,     // Ride cymbal sustain
+                sustain_level: 0.0,
+                release_secs: 0.001,
+            },
+            ClickType::RideBell => AdsrEnvelope {
+                attack_secs: 0.001,
+                decay_secs: 0.3,     // Short bell ping
                 sustain_level: 0.0,
                 release_secs: 0.001,
             },
@@ -382,6 +457,77 @@ impl ClickType {
                     release_secs: 0.1,
                 }
             ),
+            // Extended drum kit samples - synthetic fallbacks
+            ClickType::KickTight => (
+                Waveform::Sine,
+                80.0,  // Slightly higher than regular kick
+                AdsrEnvelope {
+                    attack_secs: 0.001,
+                    decay_secs: 0.2,   // Shorter decay for tight kick
+                    sustain_level: 0.0,
+                    release_secs: 0.05,
+                }
+            ),
+            ClickType::HiHatLoose => (
+                Waveform::Pulse { duty_cycle: 0.2 },
+                5000.0,
+                AdsrEnvelope {
+                    attack_secs: 0.001,
+                    decay_secs: 0.4,   // Medium decay
+                    sustain_level: 0.0,
+                    release_secs: 0.15,
+                }
+            ),
+            ClickType::HiHatVeryLoose => (
+                Waveform::Pulse { duty_cycle: 0.3 },
+                4000.0,
+                AdsrEnvelope {
+                    attack_secs: 0.001,
+                    decay_secs: 0.8,   // Long decay
+                    sustain_level: 0.0,
+                    release_secs: 0.3,
+                }
+            ),
+            ClickType::CymbalSplash => (
+                Waveform::Noise,
+                4000.0,
+                AdsrEnvelope {
+                    attack_secs: 0.001,
+                    decay_secs: 1.0,   // Splash decay
+                    sustain_level: 0.0,
+                    release_secs: 0.4,
+                }
+            ),
+            ClickType::CymbalRoll => (
+                Waveform::Noise,
+                3000.0,
+                AdsrEnvelope {
+                    attack_secs: 0.001,
+                    decay_secs: 1.5,   // Extended roll
+                    sustain_level: 0.0,
+                    release_secs: 0.6,
+                }
+            ),
+            ClickType::Ride => (
+                Waveform::Triangle,
+                2000.0,
+                AdsrEnvelope {
+                    attack_secs: 0.001,
+                    decay_secs: 0.5,   // Ride sustain
+                    sustain_level: 0.0,
+                    release_secs: 0.2,
+                }
+            ),
+            ClickType::RideBell => (
+                Waveform::Sine,
+                3000.0,
+                AdsrEnvelope {
+                    attack_secs: 0.001,
+                    decay_secs: 0.3,   // Bell ping
+                    sustain_level: 0.0,
+                    release_secs: 0.1,
+                }
+            ),
         }
     }
 }
@@ -443,6 +589,13 @@ impl MetronomeState {
             ClickType::HiHatOpen => TimingClickType::HiHatOpen,
             ClickType::RimShot => TimingClickType::RimShot,
             ClickType::Stick => TimingClickType::Stick,
+            ClickType::KickTight => TimingClickType::KickTight,
+            ClickType::HiHatLoose => TimingClickType::HiHatLoose,
+            ClickType::HiHatVeryLoose => TimingClickType::HiHatVeryLoose,
+            ClickType::CymbalSplash => TimingClickType::CymbalSplash,
+            ClickType::CymbalRoll => TimingClickType::CymbalRoll,
+            ClickType::Ride => TimingClickType::Ride,
+            ClickType::RideBell => TimingClickType::RideBell,
         };
         self.new_metronome.set_click_type(timing_click);
         self.new_metronome.set_accent_first_beat(self.accent_first_beat);
@@ -510,6 +663,13 @@ impl MetronomeState {
             TimingClickType::HiHatOpen => ClickType::HiHatOpen,
             TimingClickType::RimShot => ClickType::RimShot,
             TimingClickType::Stick => ClickType::Stick,
+            TimingClickType::KickTight => ClickType::KickTight,
+            TimingClickType::HiHatLoose => ClickType::HiHatLoose,
+            TimingClickType::HiHatVeryLoose => ClickType::HiHatVeryLoose,
+            TimingClickType::CymbalSplash => ClickType::CymbalSplash,
+            TimingClickType::CymbalRoll => ClickType::CymbalRoll,
+            TimingClickType::Ride => ClickType::Ride,
+            TimingClickType::RideBell => ClickType::RideBell,
         }
     }
 
@@ -972,11 +1132,13 @@ impl GuitarBuddy {
         match metronome.click_type {
             // For drum samples, use kick drum for accent
             ClickType::AcousticSnare | ClickType::HiHatClosed | ClickType::HiHatOpen |
-            ClickType::RimShot | ClickType::Stick => {
+            ClickType::RimShot | ClickType::Stick | ClickType::HiHatLoose |
+            ClickType::HiHatVeryLoose | ClickType::CymbalSplash | ClickType::CymbalRoll |
+            ClickType::Ride | ClickType::RideBell => {
                 ClickType::AcousticKick.get_sound_params(drum_samples)
             }
-            // For kick drum, use snare for accent
-            ClickType::AcousticKick => {
+            // For kick drum variants, use snare for accent
+            ClickType::AcousticKick | ClickType::KickTight => {
                 ClickType::AcousticSnare.get_sound_params(drum_samples)
             }
             // For synthetic sounds, use higher pitch and different waveform

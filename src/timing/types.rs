@@ -86,6 +86,15 @@ pub enum ClickType {
     HiHatOpen,      // Open hi-hat
     RimShot,        // Snare rim shot
     Stick,          // Drumstick click
+
+    // Extended drum kit samples (from JSON catalog)
+    KickTight,      // Tight, punchy kick drum variant
+    HiHatLoose,     // Loose hi-hat with medium decay
+    HiHatVeryLoose, // Very loose hi-hat with long decay
+    CymbalSplash,   // Splash cymbal for accents
+    CymbalRoll,     // Cymbal roll/crash
+    Ride,           // Ride cymbal for rhythm patterns
+    RideBell,       // Ride bell for accents and highlights
 }
 
 impl ClickType {
@@ -104,6 +113,14 @@ impl ClickType {
             ClickType::HiHatOpen,
             ClickType::RimShot,
             ClickType::Stick,
+            // Extended drum kit samples
+            ClickType::KickTight,
+            ClickType::HiHatLoose,
+            ClickType::HiHatVeryLoose,
+            ClickType::CymbalSplash,
+            ClickType::CymbalRoll,
+            ClickType::Ride,
+            ClickType::RideBell,
         ]
     }
 
@@ -122,6 +139,14 @@ impl ClickType {
             ClickType::HiHatOpen => "Hi-Hat Open",
             ClickType::RimShot => "Rim Shot",
             ClickType::Stick => "Drum Stick",
+            // Extended drum kit samples
+            ClickType::KickTight => "Kick Tight",
+            ClickType::HiHatLoose => "Hi-Hat Loose",
+            ClickType::HiHatVeryLoose => "Hi-Hat Very Loose",
+            ClickType::CymbalSplash => "Cymbal Splash",
+            ClickType::CymbalRoll => "Cymbal Roll",
+            ClickType::Ride => "Ride Cymbal",
+            ClickType::RideBell => "Ride Bell",
         }
     }
 

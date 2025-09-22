@@ -1,0 +1,891 @@
+{
+  "catalog_version": "2.0",
+  "description": "Guitar Buddy Pattern Catalog - Generated from Code",
+  "created": "2025-09-22",
+  "drum_patterns": {
+    "samba": {
+      "name": "Samba",
+      "time_signature": "4/4",
+      "tempo_range": [
+        120,
+        180
+      ],
+      "pattern": [
+        {
+          "beat": 1.0,
+          "samples": [
+            "kick"
+          ],
+          "accent": true
+        },
+        {
+          "beat": 1.5,
+          "samples": [
+            "snare"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.0,
+          "samples": [
+            "kick"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.5,
+          "samples": [
+            "snare"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.0,
+          "samples": [
+            "kick"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.5,
+          "samples": [
+            "snare"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.0,
+          "samples": [
+            "kick"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.5,
+          "samples": [
+            "snare"
+          ],
+          "accent": false
+        }
+      ]
+    },
+    "waltz": {
+      "name": "Waltz Beat",
+      "time_signature": "3/4",
+      "tempo_range": [
+        90,
+        180
+      ],
+      "pattern": [
+        {
+          "beat": 1.0,
+          "samples": [
+            "kick"
+          ],
+          "accent": true
+        },
+        {
+          "beat": 2.0,
+          "samples": [
+            "snare"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.0,
+          "samples": [
+            "snare"
+          ],
+          "accent": false
+        }
+      ]
+    },
+    "basic_rock": {
+      "name": "Basic Rock Beat",
+      "time_signature": "4/4",
+      "tempo_range": [
+        80,
+        140
+      ],
+      "pattern": [
+        {
+          "beat": 1.0,
+          "samples": [
+            "kick",
+            "hihat_closed"
+          ],
+          "accent": true
+        },
+        {
+          "beat": 1.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.0,
+          "samples": [
+            "snare",
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.0,
+          "samples": [
+            "kick",
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.0,
+          "samples": [
+            "snare",
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        }
+      ]
+    },
+    "brushes_ballad": {
+      "name": "Brushes Ballad",
+      "time_signature": "4/4",
+      "tempo_range": [
+        60,
+        100
+      ],
+      "pattern": [
+        {
+          "beat": 1.0,
+          "samples": [
+            "kick"
+          ],
+          "accent": true
+        },
+        {
+          "beat": 2.5,
+          "samples": [
+            "snare"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.0,
+          "samples": [
+            "snare"
+          ],
+          "accent": false
+        }
+      ]
+    },
+    "basic_funk": {
+      "name": "Basic Funk Groove",
+      "time_signature": "4/4",
+      "tempo_range": [
+        90,
+        120
+      ],
+      "pattern": [
+        {
+          "beat": 1.0,
+          "samples": [
+            "kick",
+            "hihat_closed"
+          ],
+          "accent": true
+        },
+        {
+          "beat": 1.75,
+          "samples": [
+            "kick"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.0,
+          "samples": [
+            "snare",
+            "hihat_open"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.0,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.25,
+          "samples": [
+            "kick"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.0,
+          "samples": [
+            "snare",
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        }
+      ]
+    },
+    "half_time_rock": {
+      "name": "Half-Time Rock",
+      "time_signature": "4/4",
+      "tempo_range": [
+        80,
+        120
+      ],
+      "pattern": [
+        {
+          "beat": 1.0,
+          "samples": [
+            "kick",
+            "hihat_closed"
+          ],
+          "accent": true
+        },
+        {
+          "beat": 1.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.0,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.0,
+          "samples": [
+            "snare",
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.0,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        }
+      ]
+    },
+    "four_on_floor": {
+      "name": "Four-on-the-Floor",
+      "time_signature": "4/4",
+      "tempo_range": [
+        120,
+        140
+      ],
+      "pattern": [
+        {
+          "beat": 1.0,
+          "samples": [
+            "kick"
+          ],
+          "accent": true
+        },
+        {
+          "beat": 1.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.0,
+          "samples": [
+            "kick",
+            "snare"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.0,
+          "samples": [
+            "kick"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.0,
+          "samples": [
+            "kick",
+            "snare"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        }
+      ]
+    },
+    "bossa_nova": {
+      "name": "Bossa Nova",
+      "time_signature": "4/4",
+      "tempo_range": [
+        100,
+        140
+      ],
+      "pattern": [
+        {
+          "beat": 1.0,
+          "samples": [
+            "kick",
+            "rimshot"
+          ],
+          "accent": true
+        },
+        {
+          "beat": 1.5,
+          "samples": [
+            "rimshot"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.5,
+          "samples": [
+            "rimshot"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.0,
+          "samples": [
+            "kick",
+            "rimshot"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.0,
+          "samples": [
+            "rimshot"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.5,
+          "samples": [
+            "rimshot"
+          ],
+          "accent": false
+        }
+      ]
+    },
+    "linear_funk": {
+      "name": "Linear Funk",
+      "time_signature": "4/4",
+      "tempo_range": [
+        80,
+        110
+      ],
+      "pattern": [
+        {
+          "beat": 1.0,
+          "samples": [
+            "kick"
+          ],
+          "accent": true
+        },
+        {
+          "beat": 1.25,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.0,
+          "samples": [
+            "snare"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.75,
+          "samples": [
+            "kick"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.0,
+          "samples": [
+            "snare"
+          ],
+          "accent": false
+        }
+      ]
+    },
+    "ballad": {
+      "name": "Ballad Beat",
+      "time_signature": "4/4",
+      "tempo_range": [
+        60,
+        90
+      ],
+      "pattern": [
+        {
+          "beat": 1.0,
+          "samples": [
+            "kick",
+            "hihat_closed"
+          ],
+          "accent": true
+        },
+        {
+          "beat": 2.0,
+          "samples": [
+            "snare",
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.0,
+          "samples": [
+            "kick",
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.0,
+          "samples": [
+            "snare",
+            "hihat_closed"
+          ],
+          "accent": false
+        }
+      ]
+    },
+    "power_rock": {
+      "name": "Power Rock Beat",
+      "time_signature": "4/4",
+      "tempo_range": [
+        120,
+        160
+      ],
+      "pattern": [
+        {
+          "beat": 1.0,
+          "samples": [
+            "kick",
+            "hihat_closed"
+          ],
+          "accent": true
+        },
+        {
+          "beat": 1.5,
+          "samples": [
+            "kick",
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.0,
+          "samples": [
+            "snare",
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.0,
+          "samples": [
+            "kick",
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.5,
+          "samples": [
+            "kick",
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.0,
+          "samples": [
+            "snare",
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        }
+      ]
+    },
+    "basic_swing": {
+      "name": "Basic Swing",
+      "time_signature": "4/4",
+      "tempo_range": [
+        120,
+        200
+      ],
+      "pattern": [
+        {
+          "beat": 1.0,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 1.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.0,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        }
+      ]
+    },
+    "pop_ballad": {
+      "name": "Pop Ballad",
+      "time_signature": "4/4",
+      "tempo_range": [
+        60,
+        90
+      ],
+      "pattern": [
+        {
+          "beat": 1.0,
+          "samples": [
+            "kick"
+          ],
+          "accent": true
+        },
+        {
+          "beat": 2.0,
+          "samples": [
+            "snare"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.0,
+          "samples": [
+            "kick"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.0,
+          "samples": [
+            "snare"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.75,
+          "samples": [
+            "stick"
+          ],
+          "accent": false
+        }
+      ]
+    },
+    "basic_pop": {
+      "name": "Basic Pop Beat",
+      "time_signature": "4/4",
+      "tempo_range": [
+        100,
+        130
+      ],
+      "pattern": [
+        {
+          "beat": 1.0,
+          "samples": [
+            "kick",
+            "hihat_closed"
+          ],
+          "accent": true
+        },
+        {
+          "beat": 2.0,
+          "samples": [
+            "snare",
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.0,
+          "samples": [
+            "kick",
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.0,
+          "samples": [
+            "snare",
+            "hihat_closed"
+          ],
+          "accent": false
+        }
+      ]
+    },
+    "shuffle": {
+      "name": "Shuffle Beat",
+      "time_signature": "4/4",
+      "tempo_range": [
+        60,
+        120
+      ],
+      "pattern": [
+        {
+          "beat": 1.0,
+          "samples": [
+            "kick",
+            "hihat_closed"
+          ],
+          "accent": true
+        },
+        {
+          "beat": 1.67,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.0,
+          "samples": [
+            "snare",
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.67,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.0,
+          "samples": [
+            "kick",
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.67,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.0,
+          "samples": [
+            "snare",
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.67,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        }
+      ]
+    },
+    "breakbeat": {
+      "name": "Breakbeat",
+      "time_signature": "4/4",
+      "tempo_range": [
+        140,
+        180
+      ],
+      "pattern": [
+        {
+          "beat": 1.0,
+          "samples": [
+            "kick"
+          ],
+          "accent": true
+        },
+        {
+          "beat": 1.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.0,
+          "samples": [
+            "snare"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 2.25,
+          "samples": [
+            "kick"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.25,
+          "samples": [
+            "kick"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 3.75,
+          "samples": [
+            "snare"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.0,
+          "samples": [
+            "kick"
+          ],
+          "accent": false
+        },
+        {
+          "beat": 4.5,
+          "samples": [
+            "hihat_closed"
+          ],
+          "accent": false
+        }
+      ]
+    }
+  }
+}
