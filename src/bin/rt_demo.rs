@@ -1,12 +1,11 @@
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::{Device, Stream, StreamConfig};
+use eframe::egui;
 /// Polyphonica Real-Time Audio Demo with GUI
 ///
 /// Interactive demonstration of the real-time synthesis engine with live audio output.
 /// Features GUI controls for real-time parameter manipulation and waveform selection.
-
-use polyphonica::{RealtimeEngine, Waveform, AdsrEnvelope, MAX_VOICES};
-use eframe::egui;
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{Device, Stream, StreamConfig};
+use polyphonica::{AdsrEnvelope, RealtimeEngine, Waveform, MAX_VOICES};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -28,9 +27,9 @@ enum WaveformType {
     Square,
     Sawtooth,
     Triangle,
-    Pulse25,  // 25% duty cycle
-    Pulse50,  // 50% duty cycle
-    Pulse75,  // 75% duty cycle
+    Pulse25, // 25% duty cycle
+    Pulse50, // 50% duty cycle
+    Pulse75, // 75% duty cycle
     Noise,
 }
 
@@ -108,14 +107,14 @@ impl PolyphonicaDemo {
 
         // Musical chord definitions
         let chord_buttons = vec![
-            ("C Maj", 261.63),   // C Major chord root
-            ("D Maj", 293.66),   // D Major chord root
-            ("E Maj", 329.63),   // E Major chord root
-            ("F Maj", 349.23),   // F Major chord root
-            ("G Maj", 392.00),   // G Major chord root
-            ("A Maj", 440.00),   // A Major chord root
-            ("B Maj", 493.88),   // B Major chord root
-            ("C Oct", 523.25),   // C Octave
+            ("C Maj", 261.63), // C Major chord root
+            ("D Maj", 293.66), // D Major chord root
+            ("E Maj", 329.63), // E Major chord root
+            ("F Maj", 349.23), // F Major chord root
+            ("G Maj", 392.00), // G Major chord root
+            ("A Maj", 440.00), // A Major chord root
+            ("B Maj", 493.88), // B Major chord root
+            ("C Oct", 523.25), // C Octave
         ];
 
         Ok(PolyphonicaDemo {
@@ -128,7 +127,12 @@ impl PolyphonicaDemo {
 
     fn trigger_note(&mut self, frequency: f32) {
         let mut engine = self.app_state.engine.lock().unwrap();
-        let waveform = self.app_state.current_waveform.lock().unwrap().to_waveform();
+        let waveform = self
+            .app_state
+            .current_waveform
+            .lock()
+            .unwrap()
+            .to_waveform();
         let envelope = self.app_state.envelope.lock().unwrap().clone();
 
         if let Some(voice_id) = engine.trigger_note(waveform, frequency, envelope) {
@@ -140,14 +144,19 @@ impl PolyphonicaDemo {
 
     fn trigger_chord(&mut self, root_frequency: f32) {
         let mut engine = self.app_state.engine.lock().unwrap();
-        let waveform = self.app_state.current_waveform.lock().unwrap().to_waveform();
+        let waveform = self
+            .app_state
+            .current_waveform
+            .lock()
+            .unwrap()
+            .to_waveform();
         let envelope = self.app_state.envelope.lock().unwrap().clone();
 
         // Major chord intervals: root, major third (+4 semitones), perfect fifth (+7 semitones)
         let chord_frequencies = [
-            root_frequency,                    // Root
-            root_frequency * 1.2599,          // Major third (2^(4/12))
-            root_frequency * 1.4983,          // Perfect fifth (2^(7/12))
+            root_frequency,          // Root
+            root_frequency * 1.2599, // Major third (2^(4/12))
+            root_frequency * 1.4983, // Perfect fifth (2^(7/12))
         ];
 
         let mut active_voices = self.app_state.active_voices.lock().unwrap();
@@ -178,7 +187,11 @@ impl eframe::App for PolyphonicaDemo {
         // Update engine parameters from GUI state
         {
             let volume = *self.app_state.master_volume.lock().unwrap();
-            self.app_state.engine.lock().unwrap().set_master_volume(volume);
+            self.app_state
+                .engine
+                .lock()
+                .unwrap()
+                .set_master_volume(volume);
         }
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -186,7 +199,12 @@ impl eframe::App for PolyphonicaDemo {
             ui.separator();
 
             // Engine status
-            let active_count = self.app_state.engine.lock().unwrap().get_active_voice_count();
+            let active_count = self
+                .app_state
+                .engine
+                .lock()
+                .unwrap()
+                .get_active_voice_count();
             let master_volume = self.app_state.engine.lock().unwrap().get_master_volume();
 
             ui.horizontal(|ui| {
@@ -210,7 +228,10 @@ impl eframe::App for PolyphonicaDemo {
                 let mut current_waveform = *self.app_state.current_waveform.lock().unwrap();
 
                 for &waveform_type in WaveformType::all() {
-                    if ui.radio_value(&mut current_waveform, waveform_type, waveform_type.name()).clicked() {
+                    if ui
+                        .radio_value(&mut current_waveform, waveform_type, waveform_type.name())
+                        .clicked()
+                    {
                         *self.app_state.current_waveform.lock().unwrap() = current_waveform;
                     }
                 }
@@ -222,7 +243,14 @@ impl eframe::App for PolyphonicaDemo {
             ui.horizontal(|ui| {
                 ui.label("Master Volume:");
                 let mut volume = *self.app_state.master_volume.lock().unwrap();
-                if ui.add(egui::Slider::new(&mut volume, 0.0..=1.0).step_by(0.01).suffix("%")).changed() {
+                if ui
+                    .add(
+                        egui::Slider::new(&mut volume, 0.0..=1.0)
+                            .step_by(0.01)
+                            .suffix("%"),
+                    )
+                    .changed()
+                {
                     *self.app_state.master_volume.lock().unwrap() = volume;
                 }
             });
@@ -231,7 +259,14 @@ impl eframe::App for PolyphonicaDemo {
             ui.horizontal(|ui| {
                 ui.label("Frequency (Hz):");
                 let mut frequency = *self.app_state.frequency.lock().unwrap();
-                if ui.add(egui::Slider::new(&mut frequency, 80.0..=2000.0).step_by(1.0).suffix(" Hz")).changed() {
+                if ui
+                    .add(
+                        egui::Slider::new(&mut frequency, 80.0..=2000.0)
+                            .step_by(1.0)
+                            .suffix(" Hz"),
+                    )
+                    .changed()
+                {
                     *self.app_state.frequency.lock().unwrap() = frequency;
                 }
             });
@@ -245,28 +280,54 @@ impl eframe::App for PolyphonicaDemo {
 
                 ui.horizontal(|ui| {
                     ui.label("Attack:");
-                    if ui.add(egui::Slider::new(&mut envelope.attack_secs, 0.0..=2.0).step_by(0.01).suffix("s")).changed() {
+                    if ui
+                        .add(
+                            egui::Slider::new(&mut envelope.attack_secs, 0.0..=2.0)
+                                .step_by(0.01)
+                                .suffix("s"),
+                        )
+                        .changed()
+                    {
                         changed = true;
                     }
                 });
 
                 ui.horizontal(|ui| {
                     ui.label("Decay:");
-                    if ui.add(egui::Slider::new(&mut envelope.decay_secs, 0.0..=2.0).step_by(0.01).suffix("s")).changed() {
+                    if ui
+                        .add(
+                            egui::Slider::new(&mut envelope.decay_secs, 0.0..=2.0)
+                                .step_by(0.01)
+                                .suffix("s"),
+                        )
+                        .changed()
+                    {
                         changed = true;
                     }
                 });
 
                 ui.horizontal(|ui| {
                     ui.label("Sustain:");
-                    if ui.add(egui::Slider::new(&mut envelope.sustain_level, 0.0..=1.0).step_by(0.01)).changed() {
+                    if ui
+                        .add(
+                            egui::Slider::new(&mut envelope.sustain_level, 0.0..=1.0).step_by(0.01),
+                        )
+                        .changed()
+                    {
                         changed = true;
                     }
                 });
 
                 ui.horizontal(|ui| {
                     ui.label("Release:");
-                    if ui.add(egui::Slider::new(&mut envelope.release_secs, 0.0..=2.0).step_by(0.01).suffix("s")).changed() {
+                    if ui
+                        .add(
+                            egui::Slider::new(&mut envelope.release_secs, 0.0..=2.0)
+                                .step_by(0.01)
+                                .suffix("s"),
+                        )
+                        .changed()
+                    {
                         changed = true;
                     }
                 });
@@ -367,7 +428,8 @@ impl eframe::App for PolyphonicaDemo {
 /// Setup CPAL audio stream for real-time output
 fn setup_audio_stream(app_state: AppState) -> Result<Stream, Box<dyn std::error::Error>> {
     let host = cpal::default_host();
-    let device = host.default_output_device()
+    let device = host
+        .default_output_device()
         .ok_or("No audio output device available")?;
 
     let config = device.default_output_config()?;
@@ -444,17 +506,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     eframe::run_native(
         "Polyphonica Real-Time Demo",
         options,
-        Box::new(|cc| {
-            match PolyphonicaDemo::new(cc) {
-                Ok(app) => {
-                    println!("✅ Demo initialized successfully!");
-                    println!("🎵 Audio output active - adjust volume as needed");
-                    Ok(Box::new(app))
-                }
-                Err(e) => {
-                    eprintln!("❌ Failed to initialize demo: {}", e);
-                    std::process::exit(1);
-                }
+        Box::new(|cc| match PolyphonicaDemo::new(cc) {
+            Ok(app) => {
+                println!("✅ Demo initialized successfully!");
+                println!("🎵 Audio output active - adjust volume as needed");
+                Ok(Box::new(app))
+            }
+            Err(e) => {
+                eprintln!("❌ Failed to initialize demo: {}", e);
+                std::process::exit(1);
             }
         }),
     )

@@ -1,379 +1,35 @@
+use polyphonica::audio::accents::get_legacy_accent_sound;
+use polyphonica::audio::synthesis::{get_legacy_sound_params, LegacySampleAdapter};
+use polyphonica::patterns::{DrumPattern, PatternLibrary, PatternState};
+use polyphonica::timing::{
+    BeatClock, BeatEvent, BeatTracker, ClickType, Metronome as NewMetronome, TimeSignature,
+};
 /// Guitar Buddy - Musical Practice Companion
 ///
 /// Phase 1: Advanced metronome with multiple click sounds and time signatures
 /// Phase 2: Full accompaniment with drums, bass lines, and chord progressions
 ///
 /// Uses Polyphonica real-time synthesis engine for precise, low-latency audio generation.
-
-use polyphonica::{RealtimeEngine, Waveform, AdsrEnvelope, SampleData};
-use polyphonica::timing::{BeatClock, Metronome as NewMetronome, TimeSignature, ClickType, BeatEvent, BeatTracker};
-use polyphonica::patterns::{DrumPattern, PatternState, PatternLibrary};
-use eframe::egui;
+use polyphonica::{AdsrEnvelope, RealtimeEngine, Waveform};
+// Audio stream available for future use
+// Visualization imports available for future use
+// Configuration management available for future use
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, Stream, StreamConfig};
+use eframe::egui;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use std::collections::HashMap;
-
+// HashMap no longer needed with modular architecture
 
 /// Drum pattern system for Phase 2 - now using polyphonica::patterns module
-
 
 /// Pattern playback state - now using polyphonica::patterns::PatternState
 /// (local implementation removed)
 
+// DrumSampleManager replaced with modular audio system
 
-/// Drum sample manager for loading and storing samples
-#[derive(Debug, Clone)]
-struct DrumSampleManager {
-    samples: HashMap<ClickType, SampleData>,
-}
-
-impl DrumSampleManager {
-    fn new() -> Self {
-        Self {
-            samples: HashMap::new(),
-        }
-    }
-
-    fn load_drum_samples(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        // Load acoustic drum kit samples using relative paths from project root
-        let sample_paths = vec![
-            (ClickType::AcousticKick, "samples/drums/acoustic/kit_01/drumkit-kick.wav"),
-            (ClickType::AcousticSnare, "samples/drums/acoustic/kit_01/drumkit-snare.wav"),
-            (ClickType::HiHatClosed, "samples/drums/acoustic/kit_01/drumkit-hihat.wav"),
-            (ClickType::HiHatOpen, "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav"),
-            (ClickType::RimShot, "samples/drums/acoustic/kit_01/drumkit-rimshot.wav"), // Dedicated rimshot sample
-            (ClickType::Stick, "samples/drums/acoustic/kit_01/drumkit-stick.wav"),    // Dedicated stick sample
-            // Extended drum kit samples - map to available samples
-            (ClickType::KickTight, "samples/drums/acoustic/kit_01/drumkit-kick.wav"),     // Reuse kick for tight variant
-            (ClickType::HiHatLoose, "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav"), // Use open hi-hat for loose
-            (ClickType::HiHatVeryLoose, "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav"), // Use open hi-hat for very loose
-            (ClickType::CymbalSplash, "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav"), // Use open hi-hat for cymbal splash
-            (ClickType::CymbalRoll, "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav"),   // Use open hi-hat for cymbal roll
-            (ClickType::Ride, "samples/drums/acoustic/kit_01/drumkit-hihat.wav"),       // Use closed hi-hat for ride
-            (ClickType::RideBell, "samples/drums/acoustic/kit_01/drumkit-stick.wav"),   // Use stick for ride bell
-        ];
-
-        for (click_type, path) in sample_paths {
-            match SampleData::from_file(path, 440.0) {
-                Ok(sample_data) => {
-                    println!("✅ Loaded drum sample: {} from {}", click_type.name(), path);
-                    self.samples.insert(click_type, sample_data);
-                }
-                Err(e) => {
-                    println!("⚠️  Could not load {}: {} (falling back to synthetic)", path, e);
-                    // Continue without the sample - will fall back to synthetic sound
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn get_sample(&self, click_type: &ClickType) -> Option<&SampleData> {
-        self.samples.get(click_type)
-    }
-
-}
-
-
-/// Audio-specific extensions for ClickType
-trait ClickTypeAudioExt {
-    fn get_sound_params(self, sample_manager: &DrumSampleManager) -> (Waveform, f32, AdsrEnvelope);
-    fn get_sample_envelope(self) -> AdsrEnvelope;
-    fn get_synthetic_params(self) -> (Waveform, f32, AdsrEnvelope);
-}
-
-impl ClickTypeAudioExt for ClickType {
-
-
-    /// Generate the waveform and parameters for this click type
-    fn get_sound_params(self, sample_manager: &DrumSampleManager) -> (Waveform, f32, AdsrEnvelope) {
-        // Check if we have a sample for this click type
-        if let Some(sample_data) = sample_manager.get_sample(&self) {
-            return (
-                Waveform::DrumSample(sample_data.clone()),
-                440.0, // Frequency is ignored for drum samples
-                self.get_sample_envelope()
-            );
-        }
-
-        // Fall back to synthetic sound
-        self.get_synthetic_params()
-    }
-
-    /// Get ADSR envelope for sample-based sounds
-    /// For drums, we use minimal envelope shaping to preserve natural character
-    fn get_sample_envelope(self) -> AdsrEnvelope {
-        match self {
-            ClickType::AcousticKick => AdsrEnvelope {
-                attack_secs: 0.001,  // Instant attack
-                decay_secs: 1.0,     // Let natural sample decay
-                sustain_level: 0.0,  // No sustain - one-shot sample
-                release_secs: 0.001, // Minimal release
-            },
-            ClickType::AcousticSnare => AdsrEnvelope {
-                attack_secs: 0.001,
-                decay_secs: 0.5,     // Let natural snare ring
-                sustain_level: 0.0,
-                release_secs: 0.001,
-            },
-            ClickType::HiHatClosed => AdsrEnvelope {
-                attack_secs: 0.001,
-                decay_secs: 0.2,     // Natural hi-hat decay
-                sustain_level: 0.0,
-                release_secs: 0.001,
-            },
-            ClickType::HiHatOpen => AdsrEnvelope {
-                attack_secs: 0.001,
-                decay_secs: 1.0,     // Let open hi-hat ring naturally
-                sustain_level: 0.0,
-                release_secs: 0.001,
-            },
-            ClickType::RimShot => AdsrEnvelope {
-                attack_secs: 0.001,
-                decay_secs: 0.3,     // Natural rim shot decay
-                sustain_level: 0.0,
-                release_secs: 0.001,
-            },
-            ClickType::Stick => AdsrEnvelope {
-                attack_secs: 0.001,
-                decay_secs: 0.1,     // Short stick click
-                sustain_level: 0.0,
-                release_secs: 0.001,
-            },
-            // Extended drum kit samples
-            ClickType::KickTight => AdsrEnvelope {
-                attack_secs: 0.001,
-                decay_secs: 0.8,     // Slightly shorter than regular kick
-                sustain_level: 0.0,
-                release_secs: 0.001,
-            },
-            ClickType::HiHatLoose => AdsrEnvelope {
-                attack_secs: 0.001,
-                decay_secs: 0.5,     // Medium decay for loose hi-hat
-                sustain_level: 0.0,
-                release_secs: 0.001,
-            },
-            ClickType::HiHatVeryLoose => AdsrEnvelope {
-                attack_secs: 0.001,
-                decay_secs: 1.2,     // Longer decay for very loose
-                sustain_level: 0.0,
-                release_secs: 0.001,
-            },
-            ClickType::CymbalSplash => AdsrEnvelope {
-                attack_secs: 0.001,
-                decay_secs: 1.5,     // Long splash decay
-                sustain_level: 0.0,
-                release_secs: 0.001,
-            },
-            ClickType::CymbalRoll => AdsrEnvelope {
-                attack_secs: 0.001,
-                decay_secs: 2.0,     // Extended roll decay
-                sustain_level: 0.0,
-                release_secs: 0.001,
-            },
-            ClickType::Ride => AdsrEnvelope {
-                attack_secs: 0.001,
-                decay_secs: 0.8,     // Ride cymbal sustain
-                sustain_level: 0.0,
-                release_secs: 0.001,
-            },
-            ClickType::RideBell => AdsrEnvelope {
-                attack_secs: 0.001,
-                decay_secs: 0.3,     // Short bell ping
-                sustain_level: 0.0,
-                release_secs: 0.001,
-            },
-            // For synthetic sounds, use default
-            _ => AdsrEnvelope {
-                attack_secs: 0.001,
-                decay_secs: 0.1,
-                sustain_level: 0.0,
-                release_secs: 0.05,
-            },
-        }
-    }
-
-    /// Get synthetic sound parameters (fallback when no sample available)
-    fn get_synthetic_params(self) -> (Waveform, f32, AdsrEnvelope) {
-        match self {
-            ClickType::WoodBlock => (
-                Waveform::Noise,
-                800.0, // High frequency for sharp click
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.05,
-                    sustain_level: 0.0,
-                    release_secs: 0.02,
-                }
-            ),
-            ClickType::DigitalBeep => (
-                Waveform::Sine,
-                1000.0,
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.08,
-                    sustain_level: 0.0,
-                    release_secs: 0.05,
-                }
-            ),
-            ClickType::Cowbell => (
-                Waveform::Square,
-                800.0,
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.15,
-                    sustain_level: 0.0,
-                    release_secs: 0.1,
-                }
-            ),
-            ClickType::RimShot => (
-                Waveform::Pulse { duty_cycle: 0.1 },
-                400.0,
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.03,
-                    sustain_level: 0.0,
-                    release_secs: 0.02,
-                }
-            ),
-            ClickType::Stick => (
-                Waveform::Triangle,
-                2000.0,
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.02,
-                    sustain_level: 0.0,
-                    release_secs: 0.01,
-                }
-            ),
-            ClickType::ElectroClick => (
-                Waveform::Pulse { duty_cycle: 0.25 },
-                1200.0,
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.04,
-                    sustain_level: 0.0,
-                    release_secs: 0.03,
-                }
-            ),
-            // For drum samples without sample data, provide synthetic alternatives
-            ClickType::AcousticKick => (
-                Waveform::Sine,
-                60.0,
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.3,
-                    sustain_level: 0.0,
-                    release_secs: 0.1,
-                }
-            ),
-            ClickType::AcousticSnare => (
-                Waveform::Noise,
-                800.0,
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.15,
-                    sustain_level: 0.0,
-                    release_secs: 0.05,
-                }
-            ),
-            ClickType::HiHatClosed => (
-                Waveform::Pulse { duty_cycle: 0.1 },
-                8000.0,
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.08,
-                    sustain_level: 0.0,
-                    release_secs: 0.02,
-                }
-            ),
-            ClickType::HiHatOpen => (
-                Waveform::Pulse { duty_cycle: 0.1 },
-                6000.0,
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.25,
-                    sustain_level: 0.0,
-                    release_secs: 0.1,
-                }
-            ),
-            // Extended drum kit samples - synthetic fallbacks
-            ClickType::KickTight => (
-                Waveform::Sine,
-                80.0,  // Slightly higher than regular kick
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.2,   // Shorter decay for tight kick
-                    sustain_level: 0.0,
-                    release_secs: 0.05,
-                }
-            ),
-            ClickType::HiHatLoose => (
-                Waveform::Pulse { duty_cycle: 0.2 },
-                5000.0,
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.4,   // Medium decay
-                    sustain_level: 0.0,
-                    release_secs: 0.15,
-                }
-            ),
-            ClickType::HiHatVeryLoose => (
-                Waveform::Pulse { duty_cycle: 0.3 },
-                4000.0,
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.8,   // Long decay
-                    sustain_level: 0.0,
-                    release_secs: 0.3,
-                }
-            ),
-            ClickType::CymbalSplash => (
-                Waveform::Noise,
-                4000.0,
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 1.0,   // Splash decay
-                    sustain_level: 0.0,
-                    release_secs: 0.4,
-                }
-            ),
-            ClickType::CymbalRoll => (
-                Waveform::Noise,
-                3000.0,
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 1.5,   // Extended roll
-                    sustain_level: 0.0,
-                    release_secs: 0.6,
-                }
-            ),
-            ClickType::Ride => (
-                Waveform::Triangle,
-                2000.0,
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.5,   // Ride sustain
-                    sustain_level: 0.0,
-                    release_secs: 0.2,
-                }
-            ),
-            ClickType::RideBell => (
-                Waveform::Sine,
-                3000.0,
-                AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.3,   // Bell ping
-                    sustain_level: 0.0,
-                    release_secs: 0.1,
-                }
-            ),
-        }
-    }
-}
+// ClickTypeAudioExt trait moved to polyphonica::audio::synthesis module
+// Legacy functions available as get_legacy_sound_params() and get_legacy_accent_sound()
 
 /// Metronome state and timing control
 struct MetronomeState {
@@ -387,12 +43,14 @@ struct MetronomeState {
     last_beat_time: Option<Instant>,
     // Phase 2: Pattern support
     pattern_state: PatternState,
-    pattern_mode: bool,  // true = pattern mode, false = metronome mode
+    pattern_mode: bool, // true = pattern mode, false = metronome mode
     pattern_library: PatternLibrary,
     // Phase 2: Beat tracking for event-driven visualizer coupling
     beat_tracker: BeatTracker,
     // New timing module (Phase 1 refactoring)
     new_metronome: NewMetronome,
+    // Audio synthesis adapter (Phase 7 refactoring)
+    audio_samples: LegacySampleAdapter,
 }
 
 impl MetronomeState {
@@ -411,6 +69,13 @@ impl MetronomeState {
             pattern_library: PatternLibrary::with_defaults(),
             beat_tracker: BeatTracker::new(),
             new_metronome: NewMetronome::new(TimeSignature::new(4, 4)),
+            audio_samples: {
+                let mut adapter = LegacySampleAdapter::new();
+                if let Err(e) = adapter.load_drum_samples() {
+                    println!("⚠️  Error loading drum samples: {}", e);
+                }
+                adapter
+            },
         };
         // Sync initial settings to new metronome
         instance.sync_to_new_metronome();
@@ -421,7 +86,8 @@ impl MetronomeState {
     fn sync_to_new_metronome(&mut self) {
         self.new_metronome.set_time_signature(self.time_signature);
         self.new_metronome.set_click_type(self.click_type);
-        self.new_metronome.set_accent_first_beat(self.accent_first_beat);
+        self.new_metronome
+            .set_accent_first_beat(self.accent_first_beat);
     }
 
     /// Calculate time between beats in milliseconds
@@ -447,7 +113,6 @@ impl MetronomeState {
         }
     }
 
-
     /// Set drum pattern and switch to pattern mode
     fn set_pattern(&mut self, pattern: DrumPattern) {
         self.pattern_state.set_pattern(pattern);
@@ -464,7 +129,8 @@ impl MetronomeState {
     fn check_pattern_triggers(&mut self) -> Vec<(ClickType, bool)> {
         if self.pattern_mode && self.is_playing {
             // Get pattern triggers directly
-            self.pattern_state.check_pattern_triggers(self.tempo_bpm)
+            self.pattern_state
+                .check_pattern_triggers(self.tempo_bpm)
                 .into_iter()
                 .map(|trigger| (trigger.click_type, trigger.is_accent))
                 .collect()
@@ -472,7 +138,6 @@ impl MetronomeState {
             vec![]
         }
     }
-
 
     fn start(&mut self) {
         self.is_playing = true;
@@ -521,27 +186,18 @@ impl MetronomeState {
 struct AppState {
     engine: Arc<Mutex<RealtimeEngine>>,
     metronome: Arc<Mutex<MetronomeState>>,
-    drum_samples: Arc<Mutex<DrumSampleManager>>,
 }
 
 impl AppState {
-    fn new(
-        engine: Arc<Mutex<RealtimeEngine>>,
-        metronome: Arc<Mutex<MetronomeState>>,
-        drum_samples: Arc<Mutex<DrumSampleManager>>,
-    ) -> Self {
-        Self {
-            engine,
-            metronome,
-            drum_samples,
-        }
+    fn new(engine: Arc<Mutex<RealtimeEngine>>, metronome: Arc<Mutex<MetronomeState>>) -> Self {
+        Self { engine, metronome }
     }
 }
 
 /// GUI Components Module
 mod gui_components {
     use super::*;
-    use egui::{Ui, Color32, Slider};
+    use egui::{Color32, Slider, Ui};
 
     /// Status display panel component
     pub struct StatusDisplayPanel;
@@ -559,7 +215,10 @@ mod gui_components {
                 if is_playing {
                     ui.colored_label(Color32::GREEN, "♪ PLAYING");
                     ui.separator();
-                    ui.label(format!("Beat: {}/{}", current_beat, time_sig.beats_per_measure));
+                    ui.label(format!(
+                        "Beat: {}/{}",
+                        current_beat, time_sig.beats_per_measure
+                    ));
                 } else {
                     ui.colored_label(Color32::GRAY, "⏸ STOPPED");
                 }
@@ -608,9 +267,11 @@ mod gui_components {
             ui.horizontal(|ui| {
                 ui.label("Tempo (BPM):");
                 let mut metronome = app_state.metronome.lock().unwrap();
-                ui.add(Slider::new(&mut metronome.tempo_bpm, 40.0..=200.0)
-                    .step_by(1.0)
-                    .suffix(" BPM"));
+                ui.add(
+                    Slider::new(&mut metronome.tempo_bpm, 40.0..=200.0)
+                        .step_by(1.0)
+                        .suffix(" BPM"),
+                );
 
                 // Preset tempo buttons
                 ui.separator();
@@ -637,7 +298,7 @@ mod gui_components {
                     if ui.radio_value(&mut current_sig, sig, name).clicked() {
                         metronome.time_signature = current_sig;
                         metronome.current_beat = 0; // Reset beat counter
-                        // Sync to new metronome
+                                                    // Sync to new metronome
                         metronome.sync_to_new_metronome();
                     }
                 }
@@ -656,7 +317,10 @@ mod gui_components {
                 let mut current_click = metronome.click_type;
 
                 for &click_type in &ClickType::all() {
-                    if ui.radio_value(&mut current_click, click_type, click_type.name()).clicked() {
+                    if ui
+                        .radio_value(&mut current_click, click_type, click_type.name())
+                        .clicked()
+                    {
                         metronome.click_type = current_click;
                         // Sync to new metronome
                         metronome.sync_to_new_metronome();
@@ -674,9 +338,11 @@ mod gui_components {
             ui.horizontal(|ui| {
                 ui.label("Volume:");
                 let mut metronome = app_state.metronome.lock().unwrap();
-                ui.add(Slider::new(&mut metronome.volume, 0.0..=1.0)
-                    .step_by(0.01)
-                    .suffix("%"));
+                ui.add(
+                    Slider::new(&mut metronome.volume, 0.0..=1.0)
+                        .step_by(0.01)
+                        .suffix("%"),
+                );
 
                 ui.separator();
                 ui.checkbox(&mut metronome.accent_first_beat, "Accent first beat");
@@ -690,15 +356,16 @@ mod gui_components {
     impl TestControlsPanel {
         pub fn show<F>(ui: &mut Ui, app_state: &AppState, trigger_click_fn: F)
         where
-            F: Fn(bool, u8) + Clone
+            F: Fn(bool, u8) + Clone,
         {
             ui.horizontal(|ui| {
                 if ui.button("🔊 Test Click").clicked() {
                     let metronome = app_state.metronome.lock().unwrap();
-                    let drum_samples = app_state.drum_samples.lock().unwrap();
-                    let (waveform, frequency, envelope) = metronome.click_type.get_sound_params(&drum_samples);
+                    // drum_samples now accessed via metronome.audio_samples
+                    let (waveform, frequency, envelope) =
+                        get_legacy_sound_params(metronome.click_type, &metronome.audio_samples);
                     drop(metronome);
-                    drop(drum_samples);
+                    // No longer need to drop drum_samples
 
                     let mut engine = app_state.engine.lock().unwrap();
                     engine.trigger_note(waveform, frequency, envelope);
@@ -706,7 +373,7 @@ mod gui_components {
 
                 if ui.button("🔊 Test Accent").clicked() {
                     let trigger_click = trigger_click_fn.clone();
-                    trigger_click(true, 1);  // Test accent as beat 1
+                    trigger_click(true, 1); // Test accent as beat 1
                 }
             });
         }
@@ -723,13 +390,21 @@ mod gui_components {
                 ui.horizontal(|ui| {
                     ui.label("Mode:");
                     let mut pattern_mode = metronome.pattern_mode;
-                    if ui.radio_value(&mut pattern_mode, false, "Metronome").clicked() {
+                    if ui
+                        .radio_value(&mut pattern_mode, false, "Metronome")
+                        .clicked()
+                    {
                         metronome.clear_pattern();
                     }
-                    if ui.radio_value(&mut pattern_mode, true, "Drum Pattern").clicked() && !metronome.pattern_mode {
+                    if ui
+                        .radio_value(&mut pattern_mode, true, "Drum Pattern")
+                        .clicked()
+                        && !metronome.pattern_mode
+                    {
                         // Set default pattern when switching to pattern mode
                         let was_playing = metronome.is_playing;
-                        let basic_rock = metronome.pattern_library.get_pattern("basic_rock").cloned();
+                        let basic_rock =
+                            metronome.pattern_library.get_pattern("basic_rock").cloned();
                         if let Some(pattern) = basic_rock {
                             metronome.set_pattern(pattern);
                         }
@@ -744,25 +419,48 @@ mod gui_components {
                     ui.separator();
                     ui.label("Available Patterns:");
 
-                    let mut current_pattern_name = metronome.pattern_state.current_pattern()
+                    let mut current_pattern_name = metronome
+                        .pattern_state
+                        .current_pattern()
                         .map(|p| p.name.clone())
                         .unwrap_or_else(|| "None".to_string());
 
-                    let available_patterns: Vec<_> = metronome.pattern_library.all_patterns().into_iter().cloned().collect();
+                    let available_patterns: Vec<_> = metronome
+                        .pattern_library
+                        .all_patterns()
+                        .into_iter()
+                        .cloned()
+                        .collect();
                     for pattern in available_patterns {
-                        if ui.radio_value(&mut current_pattern_name, pattern.name.clone(), &pattern.name).clicked() {
+                        if ui
+                            .radio_value(
+                                &mut current_pattern_name,
+                                pattern.name.clone(),
+                                &pattern.name,
+                            )
+                            .clicked()
+                        {
                             metronome.set_pattern(pattern);
                         }
                     }
 
                     ui.separator();
                     if let Some(pattern) = metronome.pattern_state.current_pattern() {
-                        ui.label(format!("Time: {}", Self::format_time_signature(&pattern.time_signature)));
-                        ui.label(format!("Tempo Range: {}-{} BPM", pattern.tempo_range.0, pattern.tempo_range.1));
+                        ui.label(format!(
+                            "Time: {}",
+                            Self::format_time_signature(&pattern.time_signature)
+                        ));
+                        ui.label(format!(
+                            "Tempo Range: {}-{} BPM",
+                            pattern.tempo_range.0, pattern.tempo_range.1
+                        ));
 
                         // Show current pattern position if playing
                         if metronome.pattern_state.is_playing() {
-                            ui.label(format!("Position: {:.1}", metronome.pattern_state.current_beat_position()));
+                            ui.label(format!(
+                                "Position: {:.1}",
+                                metronome.pattern_state.current_beat_position()
+                            ));
                         }
                     }
                 }
@@ -794,7 +492,9 @@ mod gui_components {
                         } else {
                             1 // Default to beat 1 when not playing or no triggers yet
                         };
-                        let time_sig = metronome.pattern_state.current_pattern()
+                        let time_sig = metronome
+                            .pattern_state
+                            .current_pattern()
                             .map(|p| p.time_signature)
                             .unwrap_or(metronome.time_signature);
                         (pattern_beat, time_sig)
@@ -848,11 +548,17 @@ mod gui_components {
                 });
 
                 let metronome = app_state.metronome.lock().unwrap();
-                ui.label(format!("Interval: {:.0}ms between beats", metronome.beat_interval_ms()));
+                ui.label(format!(
+                    "Interval: {:.0}ms between beats",
+                    metronome.beat_interval_ms()
+                ));
 
                 // Show additional pattern info if in pattern mode
                 if metronome.pattern_mode && metronome.pattern_state.is_playing() {
-                    ui.label(format!("Pattern Position: {:.2}", metronome.pattern_state.current_beat_position()));
+                    ui.label(format!(
+                        "Pattern Position: {:.2}",
+                        metronome.pattern_state.current_beat_position()
+                    ));
                 }
             });
         }
@@ -875,17 +581,8 @@ impl GuitarBuddy {
         // Initialize metronome state
         let metronome = Arc::new(Mutex::new(MetronomeState::new()));
 
-        // Initialize and load drum samples
-        let mut drum_samples = DrumSampleManager::new();
-        drum_samples.load_drum_samples()?;
-        let drum_samples = Arc::new(Mutex::new(drum_samples));
-
-        // Create shared state
-        let app_state = AppState::new(
-            engine.clone(),
-            metronome.clone(),
-            drum_samples.clone(),
-        );
+        // Create shared state (drum samples now managed within MetronomeState)
+        let app_state = AppState::new(engine.clone(), metronome.clone());
 
         // Setup audio stream
         let audio_stream = setup_audio_stream(app_state.clone())?;
@@ -898,15 +595,15 @@ impl GuitarBuddy {
 
     fn trigger_click(&self, is_accent: bool, beat_number: u8) {
         let mut metronome = self.app_state.metronome.lock().unwrap();
-        let drum_samples = self.app_state.drum_samples.lock().unwrap();
+        // drum_samples now accessed via metronome.audio_samples
 
         // Use different sound for accents to make them clearly distinct
         let (waveform, frequency, envelope) = if is_accent && metronome.accent_first_beat {
             // For accents, use a more prominent sound
-            self.get_accent_sound(&metronome, &drum_samples)
+            get_legacy_accent_sound(metronome.click_type, &metronome.audio_samples)
         } else {
             // Regular click
-            metronome.click_type.get_sound_params(&drum_samples)
+            get_legacy_sound_params(metronome.click_type, &metronome.audio_samples)
         };
 
         let volume = metronome.volume;
@@ -923,25 +620,32 @@ impl GuitarBuddy {
         metronome.beat_tracker.record_beat(beat_event);
 
         drop(metronome);
-        drop(drum_samples);
+        // No longer need to drop drum_samples
 
         let mut engine = self.app_state.engine.lock().unwrap();
         engine.trigger_note_with_volume(waveform, frequency, envelope, volume);
     }
 
-    fn get_accent_sound(&self, metronome: &MetronomeState, drum_samples: &DrumSampleManager) -> (Waveform, f32, AdsrEnvelope) {
+    fn get_accent_sound(&self, metronome: &MetronomeState) -> (Waveform, f32, AdsrEnvelope) {
         // Choose accent sound based on the current click type
         match metronome.click_type {
             // For drum samples, use kick drum for accent
-            ClickType::AcousticSnare | ClickType::HiHatClosed | ClickType::HiHatOpen |
-            ClickType::RimShot | ClickType::Stick | ClickType::HiHatLoose |
-            ClickType::HiHatVeryLoose | ClickType::CymbalSplash | ClickType::CymbalRoll |
-            ClickType::Ride | ClickType::RideBell => {
-                ClickType::AcousticKick.get_sound_params(drum_samples)
+            ClickType::AcousticSnare
+            | ClickType::HiHatClosed
+            | ClickType::HiHatOpen
+            | ClickType::RimShot
+            | ClickType::Stick
+            | ClickType::HiHatLoose
+            | ClickType::HiHatVeryLoose
+            | ClickType::CymbalSplash
+            | ClickType::CymbalRoll
+            | ClickType::Ride
+            | ClickType::RideBell => {
+                get_legacy_sound_params(ClickType::AcousticKick, &metronome.audio_samples)
             }
             // For kick drum variants, use snare for accent
             ClickType::AcousticKick | ClickType::KickTight => {
-                ClickType::AcousticSnare.get_sound_params(drum_samples)
+                get_legacy_sound_params(ClickType::AcousticSnare, &metronome.audio_samples)
             }
             // For synthetic sounds, use higher pitch and different waveform
             ClickType::WoodBlock => (
@@ -952,7 +656,7 @@ impl GuitarBuddy {
                     decay_secs: 0.1,
                     sustain_level: 0.0,
                     release_secs: 0.05,
-                }
+                },
             ),
             ClickType::DigitalBeep => (
                 Waveform::Square, // Different waveform
@@ -962,7 +666,7 @@ impl GuitarBuddy {
                     decay_secs: 0.12,
                     sustain_level: 0.0,
                     release_secs: 0.06,
-                }
+                },
             ),
             ClickType::Cowbell => (
                 Waveform::Triangle, // Different waveform
@@ -972,7 +676,7 @@ impl GuitarBuddy {
                     decay_secs: 0.2,
                     sustain_level: 0.0,
                     release_secs: 0.15,
-                }
+                },
             ),
             ClickType::ElectroClick => (
                 Waveform::Sine, // Different waveform
@@ -982,27 +686,35 @@ impl GuitarBuddy {
                     decay_secs: 0.06,
                     sustain_level: 0.0,
                     release_secs: 0.04,
-                }
+                },
             ),
         }
     }
 
     /// Trigger a specific drum sample for pattern playback
-    fn trigger_pattern_sample(&self, click_type: ClickType, is_accent: bool, beat_number: u8, samples: Vec<ClickType>) {
+    fn trigger_pattern_sample(
+        &self,
+        click_type: ClickType,
+        is_accent: bool,
+        beat_number: u8,
+        samples: Vec<ClickType>,
+    ) {
         let mut metronome = self.app_state.metronome.lock().unwrap();
-        let drum_samples = self.app_state.drum_samples.lock().unwrap();
+        // drum_samples now accessed via metronome.audio_samples
 
-        let (waveform, frequency, envelope) = click_type.get_sound_params(&drum_samples);
+        let (waveform, frequency, envelope) =
+            get_legacy_sound_params(click_type, &metronome.audio_samples);
 
         // Pattern accents need volume boost since they use same samples, unlike metronome which uses different sounds
         let volume = if is_accent {
-            (metronome.volume * 1.5).min(1.0)  // 50% louder for pattern accents
+            (metronome.volume * 1.5).min(1.0) // 50% louder for pattern accents
         } else {
             metronome.volume
         };
 
         // Record beat event for visualizer coupling (only once per beat, not per sample)
-        if click_type == samples[0] {  // Only record event for the first sample in the group
+        if click_type == samples[0] {
+            // Only record event for the first sample in the group
             let beat_event = BeatEvent::new(
                 beat_number,
                 is_accent,
@@ -1014,7 +726,7 @@ impl GuitarBuddy {
         }
 
         drop(metronome);
-        drop(drum_samples);
+        // No longer need to drop drum_samples
 
         let mut engine = self.app_state.engine.lock().unwrap();
         engine.trigger_note_with_volume(waveform, frequency, envelope, volume);
@@ -1035,13 +747,21 @@ impl eframe::App for GuitarBuddy {
                 if !pattern_triggers.is_empty() {
                     // Collect beat information for BeatTracker event
                     let _has_accent = pattern_triggers.iter().any(|(_, is_accent)| *is_accent);
-                    let all_samples: Vec<ClickType> = pattern_triggers.iter().map(|(click_type, _)| *click_type).collect();
+                    let all_samples: Vec<ClickType> = pattern_triggers
+                        .iter()
+                        .map(|(click_type, _)| *click_type)
+                        .collect();
 
                     // Visualizer state is now handled by BeatTracker (no manual updates needed)
 
                     drop(metronome);
                     for (click_type, is_accent) in pattern_triggers {
-                        self.trigger_pattern_sample(click_type, is_accent, beat_number, all_samples.clone());
+                        self.trigger_pattern_sample(
+                            click_type,
+                            is_accent,
+                            beat_number,
+                            all_samples.clone(),
+                        );
                     }
                 }
             } else {
@@ -1129,7 +849,8 @@ impl eframe::App for GuitarBuddy {
 /// Setup CPAL audio stream for real-time metronome output
 fn setup_audio_stream(app_state: AppState) -> Result<Stream, Box<dyn std::error::Error>> {
     let host = cpal::default_host();
-    let device = host.default_output_device()
+    let device = host
+        .default_output_device()
         .ok_or("No audio output device available")?;
 
     let config = device.default_output_config()?;
@@ -1205,17 +926,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     eframe::run_native(
         "Guitar Buddy",
         options,
-        Box::new(|cc| {
-            match GuitarBuddy::new(cc) {
-                Ok(app) => {
-                    println!("✅ Guitar Buddy initialized successfully!");
-                    println!("🎵 Audio output active - ready to rock!");
-                    Ok(Box::new(app))
-                }
-                Err(e) => {
-                    eprintln!("❌ Failed to initialize Guitar Buddy: {}", e);
-                    std::process::exit(1);
-                }
+        Box::new(|cc| match GuitarBuddy::new(cc) {
+            Ok(app) => {
+                println!("✅ Guitar Buddy initialized successfully!");
+                println!("🎵 Audio output active - ready to rock!");
+                Ok(Box::new(app))
+            }
+            Err(e) => {
+                eprintln!("❌ Failed to initialize Guitar Buddy: {}", e);
+                std::process::exit(1);
             }
         }),
     )

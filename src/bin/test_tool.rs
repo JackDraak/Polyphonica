@@ -293,7 +293,11 @@ impl Source for AudioSource {
     }
 }
 
-fn play_audio(samples: &[f32], sample_rate: u32, volume: f32) -> Result<(), Box<dyn std::error::Error>> {
+fn play_audio(
+    samples: &[f32],
+    sample_rate: u32,
+    volume: f32,
+) -> Result<(), Box<dyn std::error::Error>> {
     println!("🎵 Playing audio...");
 
     // Clamp volume to safe range
@@ -332,7 +336,11 @@ fn play_audio(samples: &[f32], sample_rate: u32, volume: f32) -> Result<(), Box<
     Ok(())
 }
 
-fn write_wav_file(samples: &[f32], sample_rate: u32, output_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+fn write_wav_file(
+    samples: &[f32],
+    sample_rate: u32,
+    output_path: &PathBuf,
+) -> Result<(), Box<dyn std::error::Error>> {
     let spec = WavSpec {
         channels: 1,
         sample_rate,
@@ -371,7 +379,9 @@ fn create_polyphonic_composition(
     match composition_type {
         CompositionType::Chord => {
             // C Major chord with extensions
-            let frequencies = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50, 1318.51];
+            let frequencies = [
+                261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50, 1318.51,
+            ];
 
             for i in 0..voices {
                 let freq_idx = (i as usize) % frequencies.len();
@@ -410,7 +420,9 @@ fn create_polyphonic_composition(
         }
         CompositionType::Scale => {
             // C Major scale
-            let frequencies = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25];
+            let frequencies = [
+                261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25,
+            ];
             let note_duration = duration / voices as f32;
 
             for i in 0..voices {
@@ -460,7 +472,12 @@ fn create_polyphonic_composition(
     events
 }
 
-fn run_test_suite(output_dir: &PathBuf, sample_rate: u32, play: bool, volume: f32) -> Result<(), Box<dyn std::error::Error>> {
+fn run_test_suite(
+    output_dir: &PathBuf,
+    sample_rate: u32,
+    play: bool,
+    volume: f32,
+) -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(output_dir)?;
 
     println!("Running comprehensive test suite...");
@@ -473,7 +490,7 @@ fn run_test_suite(output_dir: &PathBuf, sample_rate: u32, play: bool, volume: f3
         Waveform::Sawtooth,
         Waveform::Triangle,
         Waveform::Pulse { duty_cycle: 0.5 },
-        Waveform::Noise
+        Waveform::Noise,
     ];
 
     for waveform in &waveforms {
@@ -483,7 +500,9 @@ fn run_test_suite(output_dir: &PathBuf, sample_rate: u32, play: bool, volume: f3
             Waveform::Square => "square_440hz.wav".to_string(),
             Waveform::Sawtooth => "sawtooth_440hz.wav".to_string(),
             Waveform::Triangle => "triangle_440hz.wav".to_string(),
-            Waveform::Pulse { duty_cycle } => format!("pulse_{:.0}pct_440hz.wav", duty_cycle * 100.0),
+            Waveform::Pulse { duty_cycle } => {
+                format!("pulse_{:.0}pct_440hz.wav", duty_cycle * 100.0)
+            }
             Waveform::Noise => "noise_440hz.wav".to_string(),
             Waveform::Sample(_) => "sample_440hz.wav".to_string(),
             Waveform::DrumSample(_) => "drum_sample_440hz.wav".to_string(),
@@ -494,9 +513,33 @@ fn run_test_suite(output_dir: &PathBuf, sample_rate: u32, play: bool, volume: f3
     // Test 2: ADSR Envelope variations
     println!("Testing ADSR envelope variations...");
     let envelope_tests = [
-        ("piano", AdsrEnvelope { attack_secs: 0.01, decay_secs: 0.3, sustain_level: 0.3, release_secs: 1.0 }),
-        ("organ", AdsrEnvelope { attack_secs: 0.1, decay_secs: 0.0, sustain_level: 0.8, release_secs: 0.1 }),
-        ("pluck", AdsrEnvelope { attack_secs: 0.01, decay_secs: 0.5, sustain_level: 0.0, release_secs: 0.0 }),
+        (
+            "piano",
+            AdsrEnvelope {
+                attack_secs: 0.01,
+                decay_secs: 0.3,
+                sustain_level: 0.3,
+                release_secs: 1.0,
+            },
+        ),
+        (
+            "organ",
+            AdsrEnvelope {
+                attack_secs: 0.1,
+                decay_secs: 0.0,
+                sustain_level: 0.8,
+                release_secs: 0.1,
+            },
+        ),
+        (
+            "pluck",
+            AdsrEnvelope {
+                attack_secs: 0.01,
+                decay_secs: 0.5,
+                sustain_level: 0.0,
+                release_secs: 0.0,
+            },
+        ),
     ];
 
     for (name, envelope) in &envelope_tests {
@@ -508,7 +551,11 @@ fn run_test_suite(output_dir: &PathBuf, sample_rate: u32, play: bool, volume: f3
             envelope: envelope.clone(),
         };
         let samples = render_event(&event, sample_rate);
-        write_wav_file(&samples, sample_rate, &output_dir.join(format!("envelope_{}.wav", name)))?;
+        write_wav_file(
+            &samples,
+            sample_rate,
+            &output_dir.join(format!("envelope_{}.wav", name)),
+        )?;
     }
 
     // Test 3: Frequency sweeps
@@ -526,7 +573,11 @@ fn run_test_suite(output_dir: &PathBuf, sample_rate: u32, play: bool, volume: f3
         },
     };
     let sweep_samples = render_event(&sweep_event, sample_rate);
-    write_wav_file(&sweep_samples, sample_rate, &output_dir.join("frequency_sweep.wav"))?;
+    write_wav_file(
+        &sweep_samples,
+        sample_rate,
+        &output_dir.join("frequency_sweep.wav"),
+    )?;
 
     // Test 4: Polyphonic compositions
     println!("Testing polyphonic compositions...");
@@ -539,10 +590,17 @@ fn run_test_suite(output_dir: &PathBuf, sample_rate: u32, play: bool, volume: f3
     for (comp_type, name) in &compositions {
         let events = create_polyphonic_composition(comp_type.clone(), 8, 4.0);
         let timeline = render_timeline(&events, 4.0, sample_rate);
-        write_wav_file(&timeline, sample_rate, &output_dir.join(format!("polyphonic_{}.wav", name)))?;
+        write_wav_file(
+            &timeline,
+            sample_rate,
+            &output_dir.join(format!("polyphonic_{}.wav", name)),
+        )?;
     }
 
-    println!("Test suite completed! Files written to: {}", output_dir.display());
+    println!(
+        "Test suite completed! Files written to: {}",
+        output_dir.display()
+    );
 
     if play {
         println!("\n🎵 Playing sample compositions...");
@@ -596,8 +654,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Generate { waveform, frequency, duration, sample_rate, output, play, volume, duty_cycle } => {
-            println!("Generating {:?} wave at {:.1}Hz for {:.1}s", waveform, frequency, duration);
+        Commands::Generate {
+            waveform,
+            frequency,
+            duration,
+            sample_rate,
+            output,
+            play,
+            volume,
+            duty_cycle,
+        } => {
+            println!(
+                "Generating {:?} wave at {:.1}Hz for {:.1}s",
+                waveform, frequency, duration
+            );
             let wave = waveform_from_arg(waveform, duty_cycle);
             let samples = generate_wave(wave, frequency, duration, sample_rate);
 
@@ -608,8 +678,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        Commands::Envelope { waveform, frequency, duration, attack, decay, sustain, release, sample_rate, output, play, volume, duty_cycle } => {
-            println!("Testing ADSR envelope: A={:.2}s D={:.2}s S={:.2} R={:.2}s", attack, decay, sustain, release);
+        Commands::Envelope {
+            waveform,
+            frequency,
+            duration,
+            attack,
+            decay,
+            sustain,
+            release,
+            sample_rate,
+            output,
+            play,
+            volume,
+            duty_cycle,
+        } => {
+            println!(
+                "Testing ADSR envelope: A={:.2}s D={:.2}s S={:.2} R={:.2}s",
+                attack, decay, sustain, release
+            );
 
             let envelope = AdsrEnvelope {
                 attack_secs: attack,
@@ -634,16 +720,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        Commands::Polyphonic { voices, duration, sample_rate, composition, output, play, volume } => {
-            println!("Generating {:?} composition with {} voices for {:.1}s", composition, voices, duration);
+        Commands::Polyphonic {
+            voices,
+            duration,
+            sample_rate,
+            composition,
+            output,
+            play,
+            volume,
+        } => {
+            println!(
+                "Generating {:?} composition with {} voices for {:.1}s",
+                composition, voices, duration
+            );
             let events = create_polyphonic_composition(composition, voices, duration);
             let timeline = render_timeline(&events, duration, sample_rate);
             write_wav_file(&timeline, sample_rate, &output)?;
 
             println!("Composition details:");
             for (i, (start_time, event)) in events.iter().enumerate() {
-                println!("  Voice {}: {:?} at {:.1}Hz starting at {:.2}s",
-                    i + 1, event.waveform, event.start_frequency, start_time);
+                println!(
+                    "  Voice {}: {:?} at {:.1}Hz starting at {:.2}s",
+                    i + 1,
+                    event.waveform,
+                    event.start_frequency,
+                    start_time
+                );
             }
 
             if play {
@@ -651,8 +753,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        Commands::Sample { wav_file, base_frequency, target_frequency, duration, sample_rate, output, play, volume } => {
-            println!("Loading sample: {} (base: {:.1}Hz, target: {:.1}Hz)", wav_file.display(), base_frequency, target_frequency);
+        Commands::Sample {
+            wav_file,
+            base_frequency,
+            target_frequency,
+            duration,
+            sample_rate,
+            output,
+            play,
+            volume,
+        } => {
+            println!(
+                "Loading sample: {} (base: {:.1}Hz, target: {:.1}Hz)",
+                wav_file.display(),
+                base_frequency,
+                target_frequency
+            );
 
             // Load the sample
             let sample_data = match SampleData::from_file(&wav_file, base_frequency) {
@@ -663,7 +779,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             };
 
-            println!("Sample loaded: {:.2}s, {} channels, {}Hz",
+            println!(
+                "Sample loaded: {:.2}s, {} channels, {}Hz",
                 sample_data.metadata.duration_secs,
                 sample_data.metadata.channels,
                 sample_data.sample_rate
@@ -680,8 +797,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        Commands::SampleEvent { wav_file, base_frequency, target_frequency, duration, attack, decay, sustain, release, sample_rate, output, play, volume } => {
-            println!("Creating sample event: {} (base: {:.1}Hz, target: {:.1}Hz)", wav_file.display(), base_frequency, target_frequency);
+        Commands::SampleEvent {
+            wav_file,
+            base_frequency,
+            target_frequency,
+            duration,
+            attack,
+            decay,
+            sustain,
+            release,
+            sample_rate,
+            output,
+            play,
+            volume,
+        } => {
+            println!(
+                "Creating sample event: {} (base: {:.1}Hz, target: {:.1}Hz)",
+                wav_file.display(),
+                base_frequency,
+                target_frequency
+            );
 
             // Load the sample
             let sample_data = match SampleData::from_file(&wav_file, base_frequency) {
@@ -692,7 +827,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             };
 
-            println!("Sample loaded: {:.2}s, {} channels, {}Hz",
+            println!(
+                "Sample loaded: {:.2}s, {} channels, {}Hz",
                 sample_data.metadata.duration_secs,
                 sample_data.metadata.channels,
                 sample_data.sample_rate
@@ -706,7 +842,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 release_secs: release,
             };
 
-            println!("ADSR: A={:.2}s D={:.2}s S={:.2} R={:.2}s", attack, decay, sustain, release);
+            println!(
+                "ADSR: A={:.2}s D={:.2}s S={:.2} R={:.2}s",
+                attack, decay, sustain, release
+            );
 
             // Create sample event
             let event = SoundEvent {
@@ -725,11 +864,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        Commands::TestSuite { output_dir, sample_rate, play, volume } => {
+        Commands::TestSuite {
+            output_dir,
+            sample_rate,
+            play,
+            volume,
+        } => {
             run_test_suite(&output_dir, sample_rate, play, volume)?;
         }
 
-        Commands::ReportIssue { description, expected, actual, parameters } => {
+        Commands::ReportIssue {
+            description,
+            expected,
+            actual,
+            parameters,
+        } => {
             report_issue(description, expected, actual, parameters)?;
         }
     }

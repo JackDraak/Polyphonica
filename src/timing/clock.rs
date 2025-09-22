@@ -1,11 +1,10 @@
+use super::types::{TimeSignature, TriggerResult};
 /// BeatClock trait and implementations for high-precision timing
 ///
 /// This module provides the core timing abstraction used by metronomes and
 /// pattern players. The BeatClock trait provides discrete beat scheduling
 /// to prevent timing drift.
-
 use std::time::{Duration, Instant};
-use super::types::{TimeSignature, TriggerResult};
 
 /// High-precision timing abstraction for musical beats
 ///
@@ -173,7 +172,9 @@ impl DiscreteScheduler {
     /// Pause the scheduler
     pub fn pause(&mut self) {
         if matches!(self.state, SchedulerState::Running) {
-            self.state = SchedulerState::Paused { paused_at: Instant::now() };
+            self.state = SchedulerState::Paused {
+                paused_at: Instant::now(),
+            };
             self.is_running = false;
         }
     }

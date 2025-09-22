@@ -3,7 +3,6 @@
 /// This module handles the real-time state of pattern playback, including
 /// beat scheduling, pattern progression, and timing precision. It uses
 /// discrete beat scheduling to prevent timing drift during playback.
-
 use super::types::DrumPattern;
 use crate::timing::ClickType;
 use std::time::{Duration, Instant};
@@ -195,14 +194,16 @@ impl PatternState {
                     }];
 
                     // Collect all sample triggers for this beat
-                    let all_triggers: Vec<PatternTrigger> = current_beat.samples.iter().map(|&sample| {
-                        PatternTrigger {
+                    let all_triggers: Vec<PatternTrigger> = current_beat
+                        .samples
+                        .iter()
+                        .map(|&sample| PatternTrigger {
                             click_type: sample,
                             is_accent: current_beat.accent,
                             beat_position: current_beat.beat_position,
                             beat_number: self.current_beat_number(),
-                        }
-                    }).collect();
+                        })
+                        .collect();
 
                     // Advance to next beat with timing reset
                     self.advance_to_next_beat(tempo_bpm);
@@ -235,7 +236,9 @@ impl PatternState {
             return vec![];
         };
 
-        pattern.beats.iter()
+        pattern
+            .beats
+            .iter()
             .filter(|beat| (beat.beat_position - position).abs() < 0.01)
             .flat_map(|beat| {
                 beat.samples.iter().map(|&sample| PatternTrigger {
@@ -296,7 +299,8 @@ impl PatternState {
             // Looped back to start of pattern
             let last_beat = &pattern.beats[pattern.beats.len() - 1];
             let measure_length = pattern.time_signature.beats_per_measure as f32;
-            let remaining_time = (measure_length + 1.0 - last_beat.beat_position) as f64 * beat_interval_ms;
+            let remaining_time =
+                (measure_length + 1.0 - last_beat.beat_position) as f64 * beat_interval_ms;
             let next_beat_time = (next_beat_position - 1.0) as f64 * beat_interval_ms;
             remaining_time + next_beat_time
         } else {
@@ -324,7 +328,9 @@ impl PatternStats {
     /// Get playback duration
     pub fn playback_duration(&self) -> Option<Duration> {
         self.start_time.map(|start| {
-            self.last_beat_time.unwrap_or_else(Instant::now).duration_since(start)
+            self.last_beat_time
+                .unwrap_or_else(Instant::now)
+                .duration_since(start)
         })
     }
 
@@ -360,20 +366,19 @@ impl Default for PatternState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::timing::TimeSignature;
     use crate::patterns::types::DrumPatternBeat;
+    use crate::timing::TimeSignature;
 
     fn create_test_pattern() -> DrumPattern {
         DrumPattern::new("test", TimeSignature::new(4, 4))
-            .with_beat(DrumPatternBeat::new(1.0)
-                .with_sample(ClickType::AcousticKick)
-                .with_accent(true))
-            .with_beat(DrumPatternBeat::new(2.0)
-                .with_sample(ClickType::AcousticSnare))
-            .with_beat(DrumPatternBeat::new(3.0)
-                .with_sample(ClickType::AcousticKick))
-            .with_beat(DrumPatternBeat::new(4.0)
-                .with_sample(ClickType::AcousticSnare))
+            .with_beat(
+                DrumPatternBeat::new(1.0)
+                    .with_sample(ClickType::AcousticKick)
+                    .with_accent(true),
+            )
+            .with_beat(DrumPatternBeat::new(2.0).with_sample(ClickType::AcousticSnare))
+            .with_beat(DrumPatternBeat::new(3.0).with_sample(ClickType::AcousticKick))
+            .with_beat(DrumPatternBeat::new(4.0).with_sample(ClickType::AcousticSnare))
     }
 
     #[test]

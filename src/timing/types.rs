@@ -3,7 +3,6 @@
 /// This module defines the fundamental data structures used throughout the timing
 /// subsystem. These types are designed to be lightweight, copyable, and suitable
 /// for real-time audio processing.
-
 use std::time::Instant;
 
 /// Time signature representation for musical timing
@@ -74,18 +73,18 @@ impl TimeSignature {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum ClickType {
     // Synthetic sounds
-    WoodBlock,      // Sharp percussive click
-    DigitalBeep,    // Clean sine wave beep
-    Cowbell,        // Metallic ring
-    ElectroClick,   // Electronic click
+    WoodBlock,    // Sharp percussive click
+    DigitalBeep,  // Clean sine wave beep
+    Cowbell,      // Metallic ring
+    ElectroClick, // Electronic click
 
     // Real drum samples
-    AcousticKick,   // Acoustic kick drum
-    AcousticSnare,  // Acoustic snare drum
-    HiHatClosed,    // Closed hi-hat
-    HiHatOpen,      // Open hi-hat
-    RimShot,        // Snare rim shot
-    Stick,          // Drumstick click
+    AcousticKick,  // Acoustic kick drum
+    AcousticSnare, // Acoustic snare drum
+    HiHatClosed,   // Closed hi-hat
+    HiHatOpen,     // Open hi-hat
+    RimShot,       // Snare rim shot
+    Stick,         // Drumstick click
 
     // Extended drum kit samples (from JSON catalog)
     KickTight,      // Tight, punchy kick drum variant
@@ -152,11 +151,12 @@ impl ClickType {
 
     /// Check if this is a synthetic sound (vs. a real sample)
     pub fn is_synthetic(self) -> bool {
-        matches!(self,
-            ClickType::WoodBlock |
-            ClickType::DigitalBeep |
-            ClickType::Cowbell |
-            ClickType::ElectroClick
+        matches!(
+            self,
+            ClickType::WoodBlock
+                | ClickType::DigitalBeep
+                | ClickType::Cowbell
+                | ClickType::ElectroClick
         )
     }
 

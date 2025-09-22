@@ -3,7 +3,6 @@
 /// This module provides the observer pattern for coupling audio triggers
 /// with visual feedback. The BeatTracker captures timing events and
 /// notifies observers when beats occur.
-
 use super::types::BeatEvent;
 
 /// Observer trait for beat events
@@ -34,9 +33,9 @@ pub trait BeatObserver {
 /// beat events for analysis and timing validation.
 #[derive(Debug, Clone)]
 pub struct BeatTracker {
-    current_beat: Option<BeatEvent>,  // Last triggered beat event
-    beat_history: Vec<BeatEvent>,     // Recent beat events (for analysis)
-    max_history: usize,               // Maximum events to keep in history
+    current_beat: Option<BeatEvent>, // Last triggered beat event
+    beat_history: Vec<BeatEvent>,    // Recent beat events (for analysis)
+    max_history: usize,              // Maximum events to keep in history
 }
 
 impl BeatTracker {
@@ -45,7 +44,7 @@ impl BeatTracker {
         Self {
             current_beat: None,
             beat_history: Vec::new(),
-            max_history: 32,  // Keep last 32 beat events
+            max_history: 32, // Keep last 32 beat events
         }
     }
 
@@ -65,7 +64,7 @@ impl BeatTracker {
         if let Some(ref event) = self.current_beat {
             (event.beat_number, event.accent)
         } else {
-            (1, false)  // Default state
+            (1, false) // Default state
         }
     }
 

@@ -2,7 +2,6 @@
 ///
 /// This module provides pattern-based timing for drum beats and other
 /// complex rhythmic patterns.
-
 use super::clock::BeatClock;
 use super::types::{TimeSignature, TriggerResult};
 

@@ -1,7 +1,7 @@
+use std::collections::VecDeque;
 /// Comprehensive precision timing test for Guitar Buddy metronome and patterns
 /// Tests beat-to-beat consistency (<5ms precision) rather than long-term accuracy
 use std::time::{Duration, Instant};
-use std::collections::VecDeque;
 
 // Copy the exact timing structures from guitar_buddy.rs for testing
 #[derive(Debug, Clone)]
@@ -17,7 +17,9 @@ struct TimeSignature {
 
 impl TimeSignature {
     fn new(beats: u8, _note_value: u8) -> Self {
-        Self { beats_per_measure: beats }
+        Self {
+            beats_per_measure: beats,
+        }
     }
 }
 
@@ -32,14 +34,38 @@ impl DrumPattern {
         Self {
             time_signature: TimeSignature::new(4, 4),
             beats: vec![
-                DrumPatternBeat { beat_position: 1.0, accent: true },
-                DrumPatternBeat { beat_position: 1.5, accent: false },
-                DrumPatternBeat { beat_position: 2.0, accent: false },
-                DrumPatternBeat { beat_position: 2.5, accent: false },
-                DrumPatternBeat { beat_position: 3.0, accent: false },
-                DrumPatternBeat { beat_position: 3.5, accent: false },
-                DrumPatternBeat { beat_position: 4.0, accent: false },
-                DrumPatternBeat { beat_position: 4.5, accent: false },
+                DrumPatternBeat {
+                    beat_position: 1.0,
+                    accent: true,
+                },
+                DrumPatternBeat {
+                    beat_position: 1.5,
+                    accent: false,
+                },
+                DrumPatternBeat {
+                    beat_position: 2.0,
+                    accent: false,
+                },
+                DrumPatternBeat {
+                    beat_position: 2.5,
+                    accent: false,
+                },
+                DrumPatternBeat {
+                    beat_position: 3.0,
+                    accent: false,
+                },
+                DrumPatternBeat {
+                    beat_position: 3.5,
+                    accent: false,
+                },
+                DrumPatternBeat {
+                    beat_position: 4.0,
+                    accent: false,
+                },
+                DrumPatternBeat {
+                    beat_position: 4.5,
+                    accent: false,
+                },
             ],
         }
     }
@@ -95,7 +121,9 @@ impl PatternState {
                 }
 
                 // Find beats at position 1.0
-                let first_beat_triggers: Vec<(bool, f32)> = pattern.beats.iter()
+                let first_beat_triggers: Vec<(bool, f32)> = pattern
+                    .beats
+                    .iter()
                     .filter(|beat| (beat.beat_position - 1.0).abs() < 0.01)
                     .map(|beat| (beat.accent, beat.beat_position))
                     .collect();
@@ -164,7 +192,8 @@ impl PatternState {
             // Looped back to start - calculate time to beat 1 of next measure
             let current_beat_in_pattern = &pattern.beats[pattern.beats.len() - 1];
             let loop_point = pattern.time_signature.beats_per_measure as f32 + 1.0;
-            let remaining_time = (loop_point - current_beat_in_pattern.beat_position) as f64 * beat_interval_ms;
+            let remaining_time =
+                (loop_point - current_beat_in_pattern.beat_position) as f64 * beat_interval_ms;
             let next_beat_time = (next_beat_position - 1.0) as f64 * beat_interval_ms;
             remaining_time + next_beat_time
         } else {
@@ -176,7 +205,6 @@ impl PatternState {
         // Reset timing base - this prevents drift accumulation!
         self.next_beat_time = Some(current_time + Duration::from_millis(interval_ms as u64));
     }
-
 }
 
 // Metronome state (simplified for testing)
@@ -277,13 +305,13 @@ impl PrecisionStats {
         let mean = intervals.iter().sum::<f64>() / intervals.len() as f64;
 
         // Calculate standard deviation (precision measure)
-        let variance = intervals.iter()
-            .map(|&x| (x - mean).powi(2))
-            .sum::<f64>() / intervals.len() as f64;
+        let variance =
+            intervals.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / intervals.len() as f64;
         let std_dev = variance.sqrt();
 
         // Maximum deviation from expected interval
-        let max_deviation = intervals.iter()
+        let max_deviation = intervals
+            .iter()
             .map(|&x| (x - self.expected_interval_ms).abs())
             .fold(0.0, f64::max);
 
@@ -317,8 +345,10 @@ fn test_metronome_precision(tempo_bpm: f32, test_duration_secs: u64) -> (f64, f6
 
                 let deviation = interval_ms as f64 - expected_interval_ms;
                 if deviation.abs() > 10.0 {
-                    println!("  ⚠️  Beat {}: {}ms (deviation: {:+.1}ms)",
-                             beat_count, interval_ms, deviation);
+                    println!(
+                        "  ⚠️  Beat {}: {}ms (deviation: {:+.1}ms)",
+                        beat_count, interval_ms, deviation
+                    );
                 }
             }
 
@@ -335,7 +365,10 @@ fn test_metronome_precision(tempo_bpm: f32, test_duration_secs: u64) -> (f64, f6
     println!("  📈 Mean interval: {:.1}ms", mean);
     println!("  🎯 Precision (std dev): {:.2}ms", std_dev);
     println!("  📐 Max deviation: {:.1}ms", max_dev);
-    println!("  ✅ Precision OK: {}", if precision_ok { "YES" } else { "NO" });
+    println!(
+        "  ✅ Precision OK: {}",
+        if precision_ok { "YES" } else { "NO" }
+    );
 
     (mean, std_dev, max_dev, precision_ok)
 }
@@ -365,8 +398,10 @@ fn test_pattern_precision(tempo_bpm: f32, test_duration_secs: u64) -> (f64, f64,
 
                 let deviation = interval_ms as f64 - expected_interval_ms;
                 if deviation.abs() > 10.0 {
-                    println!("  ⚠️  Trigger {}: {}ms (deviation: {:+.1}ms)",
-                             trigger_count, interval_ms, deviation);
+                    println!(
+                        "  ⚠️  Trigger {}: {}ms (deviation: {:+.1}ms)",
+                        trigger_count, interval_ms, deviation
+                    );
                 }
             }
 
@@ -383,7 +418,10 @@ fn test_pattern_precision(tempo_bpm: f32, test_duration_secs: u64) -> (f64, f64,
     println!("  📈 Mean interval: {:.1}ms", mean);
     println!("  🎯 Precision (std dev): {:.2}ms", std_dev);
     println!("  📐 Max deviation: {:.1}ms", max_dev);
-    println!("  ✅ Precision OK: {}", if precision_ok { "YES" } else { "NO" });
+    println!(
+        "  ✅ Precision OK: {}",
+        if precision_ok { "YES" } else { "NO" }
+    );
 
     (mean, std_dev, max_dev, precision_ok)
 }
@@ -416,10 +454,19 @@ fn main() {
         let tempo_passed = met_ok && pat_ok;
         all_tests_passed &= tempo_passed;
 
-        println!("  🎯 {} Tempo Result: {}", label,
-                if tempo_passed { "✅ PASS" } else { "❌ FAIL" });
-        println!("     Metronome precision: {:.2}ms (target: <5ms)", met_precision);
-        println!("     Pattern precision: {:.2}ms (target: <5ms)", pat_precision);
+        println!(
+            "  🎯 {} Tempo Result: {}",
+            label,
+            if tempo_passed { "✅ PASS" } else { "❌ FAIL" }
+        );
+        println!(
+            "     Metronome precision: {:.2}ms (target: <5ms)",
+            met_precision
+        );
+        println!(
+            "     Pattern precision: {:.2}ms (target: <5ms)",
+            pat_precision
+        );
         println!();
     }
 

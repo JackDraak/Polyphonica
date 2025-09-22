@@ -3,9 +3,8 @@
 /// This module contains predefined drum patterns for various genres and styles.
 /// It provides the core patterns that were originally defined in guitar_buddy.rs
 /// but now in a more structured and extensible format.
-
 use super::types::{DrumPattern, DrumPatternBeat, PatternGenre};
-use crate::timing::{TimeSignature, ClickType};
+use crate::timing::{ClickType, TimeSignature};
 use std::collections::HashMap;
 
 /// Pattern library for managing collections of drum patterns
@@ -72,7 +71,8 @@ impl PatternLibrary {
         self.genre_index
             .get(genre)
             .map(|names| {
-                names.iter()
+                names
+                    .iter()
                     .filter_map(|name| self.patterns.get(name))
                     .collect()
             })
@@ -84,7 +84,8 @@ impl PatternLibrary {
         self.difficulty_index
             .get(&difficulty)
             .map(|names| {
-                names.iter()
+                names
+                    .iter()
                     .filter_map(|name| self.patterns.get(name))
                     .collect()
             })
@@ -94,19 +95,29 @@ impl PatternLibrary {
     /// Search patterns by name or tag
     pub fn search_patterns(&self, query: &str) -> Vec<&DrumPattern> {
         let query_lower = query.to_lowercase();
-        self.patterns.values()
+        self.patterns
+            .values()
             .filter(|pattern| {
                 pattern.name.to_lowercase().contains(&query_lower)
                     || pattern.display_name.to_lowercase().contains(&query_lower)
-                    || pattern.metadata.description.to_lowercase().contains(&query_lower)
-                    || pattern.metadata.tags.iter().any(|tag| tag.to_lowercase().contains(&query_lower))
+                    || pattern
+                        .metadata
+                        .description
+                        .to_lowercase()
+                        .contains(&query_lower)
+                    || pattern
+                        .metadata
+                        .tags
+                        .iter()
+                        .any(|tag| tag.to_lowercase().contains(&query_lower))
             })
             .collect()
     }
 
     /// Get patterns suitable for a given tempo
     pub fn patterns_for_tempo(&self, tempo_bpm: u32) -> Vec<&DrumPattern> {
-        self.patterns.values()
+        self.patterns
+            .values()
             .filter(|pattern| pattern.is_tempo_suitable(tempo_bpm))
             .collect()
     }
@@ -135,23 +146,27 @@ impl PatternLibrary {
             .with_tag("rock")
             .with_tag("basic")
             .with_tag("4/4")
-            .with_beat(DrumPatternBeat::new(1.0)
-                .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed])
-                .with_accent(true))
-            .with_beat(DrumPatternBeat::new(1.5)
-                .with_sample(ClickType::HiHatClosed))
-            .with_beat(DrumPatternBeat::new(2.0)
-                .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]))
-            .with_beat(DrumPatternBeat::new(2.5)
-                .with_sample(ClickType::HiHatClosed))
-            .with_beat(DrumPatternBeat::new(3.0)
-                .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed]))
-            .with_beat(DrumPatternBeat::new(3.5)
-                .with_sample(ClickType::HiHatClosed))
-            .with_beat(DrumPatternBeat::new(4.0)
-                .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]))
-            .with_beat(DrumPatternBeat::new(4.5)
-                .with_sample(ClickType::HiHatClosed));
+            .with_beat(
+                DrumPatternBeat::new(1.0)
+                    .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed])
+                    .with_accent(true),
+            )
+            .with_beat(DrumPatternBeat::new(1.5).with_sample(ClickType::HiHatClosed))
+            .with_beat(
+                DrumPatternBeat::new(2.0)
+                    .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]),
+            )
+            .with_beat(DrumPatternBeat::new(2.5).with_sample(ClickType::HiHatClosed))
+            .with_beat(
+                DrumPatternBeat::new(3.0)
+                    .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed]),
+            )
+            .with_beat(DrumPatternBeat::new(3.5).with_sample(ClickType::HiHatClosed))
+            .with_beat(
+                DrumPatternBeat::new(4.0)
+                    .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]),
+            )
+            .with_beat(DrumPatternBeat::new(4.5).with_sample(ClickType::HiHatClosed));
 
         self.add_pattern(basic_rock);
 
@@ -165,23 +180,27 @@ impl PatternLibrary {
             .with_tag("shuffle")
             .with_tag("blues")
             .with_tag("swing")
-            .with_beat(DrumPatternBeat::new(1.0)
-                .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed])
-                .with_accent(true))
-            .with_beat(DrumPatternBeat::new(1.67)
-                .with_sample(ClickType::HiHatClosed))
-            .with_beat(DrumPatternBeat::new(2.0)
-                .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]))
-            .with_beat(DrumPatternBeat::new(2.67)
-                .with_sample(ClickType::HiHatClosed))
-            .with_beat(DrumPatternBeat::new(3.0)
-                .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed]))
-            .with_beat(DrumPatternBeat::new(3.67)
-                .with_sample(ClickType::HiHatClosed))
-            .with_beat(DrumPatternBeat::new(4.0)
-                .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]))
-            .with_beat(DrumPatternBeat::new(4.67)
-                .with_sample(ClickType::HiHatClosed));
+            .with_beat(
+                DrumPatternBeat::new(1.0)
+                    .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed])
+                    .with_accent(true),
+            )
+            .with_beat(DrumPatternBeat::new(1.67).with_sample(ClickType::HiHatClosed))
+            .with_beat(
+                DrumPatternBeat::new(2.0)
+                    .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]),
+            )
+            .with_beat(DrumPatternBeat::new(2.67).with_sample(ClickType::HiHatClosed))
+            .with_beat(
+                DrumPatternBeat::new(3.0)
+                    .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed]),
+            )
+            .with_beat(DrumPatternBeat::new(3.67).with_sample(ClickType::HiHatClosed))
+            .with_beat(
+                DrumPatternBeat::new(4.0)
+                    .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]),
+            )
+            .with_beat(DrumPatternBeat::new(4.67).with_sample(ClickType::HiHatClosed));
 
         self.add_pattern(shuffle);
 
@@ -195,15 +214,23 @@ impl PatternLibrary {
             .with_tag("ballad")
             .with_tag("pop")
             .with_tag("simple")
-            .with_beat(DrumPatternBeat::new(1.0)
-                .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed])
-                .with_accent(true))
-            .with_beat(DrumPatternBeat::new(2.0)
-                .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]))
-            .with_beat(DrumPatternBeat::new(3.0)
-                .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed]))
-            .with_beat(DrumPatternBeat::new(4.0)
-                .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]));
+            .with_beat(
+                DrumPatternBeat::new(1.0)
+                    .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed])
+                    .with_accent(true),
+            )
+            .with_beat(
+                DrumPatternBeat::new(2.0)
+                    .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]),
+            )
+            .with_beat(
+                DrumPatternBeat::new(3.0)
+                    .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed]),
+            )
+            .with_beat(
+                DrumPatternBeat::new(4.0)
+                    .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]),
+            );
 
         self.add_pattern(ballad);
 
@@ -217,13 +244,13 @@ impl PatternLibrary {
             .with_tag("waltz")
             .with_tag("3/4")
             .with_tag("classical")
-            .with_beat(DrumPatternBeat::new(1.0)
-                .with_sample(ClickType::AcousticKick)
-                .with_accent(true))
-            .with_beat(DrumPatternBeat::new(2.0)
-                .with_sample(ClickType::AcousticSnare))
-            .with_beat(DrumPatternBeat::new(3.0)
-                .with_sample(ClickType::AcousticSnare));
+            .with_beat(
+                DrumPatternBeat::new(1.0)
+                    .with_sample(ClickType::AcousticKick)
+                    .with_accent(true),
+            )
+            .with_beat(DrumPatternBeat::new(2.0).with_sample(ClickType::AcousticSnare))
+            .with_beat(DrumPatternBeat::new(3.0).with_sample(ClickType::AcousticSnare));
 
         self.add_pattern(waltz);
     }
@@ -246,23 +273,27 @@ impl PatternFactory {
             .with_tempo_range(80, 140)
             .with_genre(PatternGenre::Rock)
             .with_difficulty(2)
-            .with_beat(DrumPatternBeat::new(1.0)
-                .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed])
-                .with_accent(true))
-            .with_beat(DrumPatternBeat::new(1.5)
-                .with_sample(ClickType::HiHatClosed))
-            .with_beat(DrumPatternBeat::new(2.0)
-                .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]))
-            .with_beat(DrumPatternBeat::new(2.5)
-                .with_sample(ClickType::HiHatClosed))
-            .with_beat(DrumPatternBeat::new(3.0)
-                .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed]))
-            .with_beat(DrumPatternBeat::new(3.5)
-                .with_sample(ClickType::HiHatClosed))
-            .with_beat(DrumPatternBeat::new(4.0)
-                .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]))
-            .with_beat(DrumPatternBeat::new(4.5)
-                .with_sample(ClickType::HiHatClosed))
+            .with_beat(
+                DrumPatternBeat::new(1.0)
+                    .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed])
+                    .with_accent(true),
+            )
+            .with_beat(DrumPatternBeat::new(1.5).with_sample(ClickType::HiHatClosed))
+            .with_beat(
+                DrumPatternBeat::new(2.0)
+                    .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]),
+            )
+            .with_beat(DrumPatternBeat::new(2.5).with_sample(ClickType::HiHatClosed))
+            .with_beat(
+                DrumPatternBeat::new(3.0)
+                    .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed]),
+            )
+            .with_beat(DrumPatternBeat::new(3.5).with_sample(ClickType::HiHatClosed))
+            .with_beat(
+                DrumPatternBeat::new(4.0)
+                    .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]),
+            )
+            .with_beat(DrumPatternBeat::new(4.5).with_sample(ClickType::HiHatClosed))
     }
 
     /// Create a shuffle pattern
@@ -272,23 +303,27 @@ impl PatternFactory {
             .with_tempo_range(60, 120)
             .with_genre(PatternGenre::Blues)
             .with_difficulty(3)
-            .with_beat(DrumPatternBeat::new(1.0)
-                .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed])
-                .with_accent(true))
-            .with_beat(DrumPatternBeat::new(1.67)
-                .with_sample(ClickType::HiHatClosed))
-            .with_beat(DrumPatternBeat::new(2.0)
-                .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]))
-            .with_beat(DrumPatternBeat::new(2.67)
-                .with_sample(ClickType::HiHatClosed))
-            .with_beat(DrumPatternBeat::new(3.0)
-                .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed]))
-            .with_beat(DrumPatternBeat::new(3.67)
-                .with_sample(ClickType::HiHatClosed))
-            .with_beat(DrumPatternBeat::new(4.0)
-                .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]))
-            .with_beat(DrumPatternBeat::new(4.67)
-                .with_sample(ClickType::HiHatClosed))
+            .with_beat(
+                DrumPatternBeat::new(1.0)
+                    .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed])
+                    .with_accent(true),
+            )
+            .with_beat(DrumPatternBeat::new(1.67).with_sample(ClickType::HiHatClosed))
+            .with_beat(
+                DrumPatternBeat::new(2.0)
+                    .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]),
+            )
+            .with_beat(DrumPatternBeat::new(2.67).with_sample(ClickType::HiHatClosed))
+            .with_beat(
+                DrumPatternBeat::new(3.0)
+                    .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed]),
+            )
+            .with_beat(DrumPatternBeat::new(3.67).with_sample(ClickType::HiHatClosed))
+            .with_beat(
+                DrumPatternBeat::new(4.0)
+                    .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]),
+            )
+            .with_beat(DrumPatternBeat::new(4.67).with_sample(ClickType::HiHatClosed))
     }
 
     /// Create a ballad pattern
@@ -298,15 +333,23 @@ impl PatternFactory {
             .with_tempo_range(60, 90)
             .with_genre(PatternGenre::Pop)
             .with_difficulty(1)
-            .with_beat(DrumPatternBeat::new(1.0)
-                .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed])
-                .with_accent(true))
-            .with_beat(DrumPatternBeat::new(2.0)
-                .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]))
-            .with_beat(DrumPatternBeat::new(3.0)
-                .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed]))
-            .with_beat(DrumPatternBeat::new(4.0)
-                .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]))
+            .with_beat(
+                DrumPatternBeat::new(1.0)
+                    .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed])
+                    .with_accent(true),
+            )
+            .with_beat(
+                DrumPatternBeat::new(2.0)
+                    .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]),
+            )
+            .with_beat(
+                DrumPatternBeat::new(3.0)
+                    .with_samples(vec![ClickType::AcousticKick, ClickType::HiHatClosed]),
+            )
+            .with_beat(
+                DrumPatternBeat::new(4.0)
+                    .with_samples(vec![ClickType::AcousticSnare, ClickType::HiHatClosed]),
+            )
     }
 
     /// Create a waltz pattern
@@ -316,13 +359,13 @@ impl PatternFactory {
             .with_tempo_range(90, 180)
             .with_genre(PatternGenre::Classical)
             .with_difficulty(2)
-            .with_beat(DrumPatternBeat::new(1.0)
-                .with_sample(ClickType::AcousticKick)
-                .with_accent(true))
-            .with_beat(DrumPatternBeat::new(2.0)
-                .with_sample(ClickType::AcousticSnare))
-            .with_beat(DrumPatternBeat::new(3.0)
-                .with_sample(ClickType::AcousticSnare))
+            .with_beat(
+                DrumPatternBeat::new(1.0)
+                    .with_sample(ClickType::AcousticKick)
+                    .with_accent(true),
+            )
+            .with_beat(DrumPatternBeat::new(2.0).with_sample(ClickType::AcousticSnare))
+            .with_beat(DrumPatternBeat::new(3.0).with_sample(ClickType::AcousticSnare))
     }
 
     /// Get all factory patterns

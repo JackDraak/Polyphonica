@@ -3,7 +3,11 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 
-fn validate_inputs(frequency: f32, duration_secs: f32, sample_rate: u32) -> Result<(), &'static str> {
+fn validate_inputs(
+    frequency: f32,
+    duration_secs: f32,
+    sample_rate: u32,
+) -> Result<(), &'static str> {
     if frequency <= 0.0 || frequency > 20000.0 {
         return Err("Frequency must be between 0 and 20000 Hz");
     }
@@ -48,16 +52,16 @@ fn generate_sample(waveform: &Waveform, phase: f32, time_secs: f32, target_frequ
         }
         Waveform::Noise => {
             // Linear congruential generator for deterministic noise
-            let seed = ((time_secs * 1000.0) as u32).wrapping_mul(1103515245).wrapping_add(12345);
+            let seed = ((time_secs * 1000.0) as u32)
+                .wrapping_mul(1103515245)
+                .wrapping_add(12345);
             let noise = (seed % 32768) as f32 / 16384.0 - 1.0;
             noise
         }
         Waveform::Sample(sample_data) => {
             sample_data.get_sample_at_time(time_secs, target_frequency)
         }
-        Waveform::DrumSample(sample_data) => {
-            sample_data.get_natural_sample_at_time(time_secs)
-        }
+        Waveform::DrumSample(sample_data) => sample_data.get_natural_sample_at_time(time_secs),
     }
 }
 
@@ -67,7 +71,9 @@ pub enum Waveform {
     Square,
     Sawtooth,
     Triangle,
-    Pulse { duty_cycle: f32 },
+    Pulse {
+        duty_cycle: f32,
+    },
     Noise,
     Sample(SampleData),
     /// Drum sample played at natural speed without pitch shifting
@@ -134,31 +140,33 @@ impl SampleData {
         // Validate format
         if base_frequency <= 0.0 || base_frequency > 20000.0 {
             return Err(SampleError::FormatError(
-                "Base frequency must be between 0 and 20000 Hz".to_string()
+                "Base frequency must be between 0 and 20000 Hz".to_string(),
             ));
         }
 
         // Read samples and convert to f32
         let samples: Result<Vec<f32>, _> = match spec.sample_format {
-            hound::SampleFormat::Float => {
-                reader.samples::<f32>().collect()
-            }
-            hound::SampleFormat::Int => {
-                match spec.bits_per_sample {
-                    16 => reader.samples::<i16>()
-                        .map(|s| s.map(|sample| sample as f32 / i16::MAX as f32))
-                        .collect(),
-                    24 => reader.samples::<i32>()
-                        .map(|s| s.map(|sample| (sample >> 8) as f32 / i32::MAX as f32))
-                        .collect(),
-                    32 => reader.samples::<i32>()
-                        .map(|s| s.map(|sample| sample as f32 / i32::MAX as f32))
-                        .collect(),
-                    _ => return Err(SampleError::UnsupportedFormat(
-                        format!("Unsupported bit depth: {}", spec.bits_per_sample)
-                    )),
+            hound::SampleFormat::Float => reader.samples::<f32>().collect(),
+            hound::SampleFormat::Int => match spec.bits_per_sample {
+                16 => reader
+                    .samples::<i16>()
+                    .map(|s| s.map(|sample| sample as f32 / i16::MAX as f32))
+                    .collect(),
+                24 => reader
+                    .samples::<i32>()
+                    .map(|s| s.map(|sample| (sample >> 8) as f32 / i32::MAX as f32))
+                    .collect(),
+                32 => reader
+                    .samples::<i32>()
+                    .map(|s| s.map(|sample| sample as f32 / i32::MAX as f32))
+                    .collect(),
+                _ => {
+                    return Err(SampleError::UnsupportedFormat(format!(
+                        "Unsupported bit depth: {}",
+                        spec.bits_per_sample
+                    )))
                 }
-            }
+            },
         };
 
         let mut samples = samples.map_err(|e| SampleError::FormatError(e.to_string()))?;
@@ -171,15 +179,17 @@ impl SampleData {
                 .collect();
             samples = mono_samples;
         } else if spec.channels > 2 {
-            return Err(SampleError::UnsupportedFormat(
-                format!("Unsupported channel count: {}", spec.channels)
-            ));
+            return Err(SampleError::UnsupportedFormat(format!(
+                "Unsupported channel count: {}",
+                spec.channels
+            )));
         }
 
         let duration_secs = samples.len() as f32 / spec.sample_rate as f32;
 
         let metadata = SampleMetadata {
-            filename: path.file_name()
+            filename: path
+                .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("unknown")
                 .to_string(),
@@ -202,7 +212,7 @@ impl SampleData {
     pub fn with_loop_points(mut self, start: usize, end: usize) -> Result<Self, SampleError> {
         if start >= self.samples.len() || end >= self.samples.len() || start >= end {
             return Err(SampleError::FormatError(
-                "Invalid loop points: must be within sample bounds and start < end".to_string()
+                "Invalid loop points: must be within sample bounds and start < end".to_string(),
             ));
         }
 
@@ -401,8 +411,8 @@ pub fn render_event(event: &SoundEvent, sample_rate: u32) -> Vec<f32> {
         let progress = t / event.duration_secs;
 
         // Linear interpolation between start and end frequency
-        let current_frequency = event.start_frequency +
-            (event.end_frequency - event.start_frequency) * progress;
+        let current_frequency =
+            event.start_frequency + (event.end_frequency - event.start_frequency) * progress;
 
         let phase = 2.0 * PI * current_frequency * t;
         let sample = generate_sample(&event.waveform, phase, t, current_frequency);
@@ -548,7 +558,10 @@ impl EnvelopeState {
     /// Update envelope state and return current amplitude
     pub fn update(&mut self, envelope: &AdsrEnvelope, dt: f32, note_released: bool) -> f32 {
         // Handle release trigger
-        if note_released && self.phase != EnvelopePhase::Release && self.phase != EnvelopePhase::Finished {
+        if note_released
+            && self.phase != EnvelopePhase::Release
+            && self.phase != EnvelopePhase::Finished
+        {
             self.phase = EnvelopePhase::Release;
             self.phase_time = 0.0;
             self.release_level = self.current_level;
@@ -667,7 +680,13 @@ impl Voice {
     }
 
     /// Trigger a note with volume scaling
-    pub fn trigger_note_with_volume(&mut self, waveform: Waveform, frequency: f32, envelope: AdsrEnvelope, volume: f32) {
+    pub fn trigger_note_with_volume(
+        &mut self,
+        waveform: Waveform,
+        frequency: f32,
+        envelope: AdsrEnvelope,
+        volume: f32,
+    ) {
         self.waveform = waveform;
         self.frequency = frequency;
         self.target_frequency = frequency;
@@ -675,7 +694,7 @@ impl Voice {
         self.envelope_state = EnvelopeState::new();
         self.phase = 0.0;
         self.sample_time = 0.0;
-        self.volume = volume;  // Store volume for use during sample generation
+        self.volume = volume; // Store volume for use during sample generation
         self.active.store(true, Ordering::Relaxed);
     }
 
@@ -702,7 +721,8 @@ impl Voice {
         }
 
         // Generate waveform sample
-        let waveform_sample = generate_sample(&self.waveform, self.phase, self.sample_time, self.frequency);
+        let waveform_sample =
+            generate_sample(&self.waveform, self.phase, self.sample_time, self.frequency);
 
         // Update phase for next sample
         self.phase += 2.0 * PI * self.frequency / sample_rate;
@@ -777,7 +797,8 @@ impl RealtimeEngine {
 
     /// Set master volume (0.0 to 1.0)
     pub fn set_master_volume(&self, volume: f32) {
-        self.master_volume.store(volume.clamp(0.0, 1.0), Ordering::Relaxed);
+        self.master_volume
+            .store(volume.clamp(0.0, 1.0), Ordering::Relaxed);
     }
 
     /// Get current master volume
@@ -786,7 +807,12 @@ impl RealtimeEngine {
     }
 
     /// Trigger a new note (finds an available voice)
-    pub fn trigger_note(&mut self, waveform: Waveform, frequency: f32, envelope: AdsrEnvelope) -> Option<u32> {
+    pub fn trigger_note(
+        &mut self,
+        waveform: Waveform,
+        frequency: f32,
+        envelope: AdsrEnvelope,
+    ) -> Option<u32> {
         // First, try to find an inactive voice
         for voice in &mut self.voices {
             if !voice.is_active() {
@@ -809,7 +835,13 @@ impl RealtimeEngine {
     }
 
     /// Trigger a new note with volume control (finds an available voice)
-    pub fn trigger_note_with_volume(&mut self, waveform: Waveform, frequency: f32, envelope: AdsrEnvelope, volume: f32) -> Option<u32> {
+    pub fn trigger_note_with_volume(
+        &mut self,
+        waveform: Waveform,
+        frequency: f32,
+        envelope: AdsrEnvelope,
+        volume: f32,
+    ) -> Option<u32> {
         // First, try to find an inactive voice
         for voice in &mut self.voices {
             if !voice.is_active() {
@@ -910,7 +942,9 @@ impl RealtimeEngine {
     pub fn trigger_chord(&mut self, notes: &[(Waveform, f32)], envelope: AdsrEnvelope) -> Vec<u32> {
         let mut voice_ids = Vec::new();
         for (waveform, frequency) in notes {
-            if let Some(voice_id) = self.trigger_note(waveform.clone(), *frequency, envelope.clone()) {
+            if let Some(voice_id) =
+                self.trigger_note(waveform.clone(), *frequency, envelope.clone())
+            {
                 voice_ids.push(voice_id);
             }
         }
@@ -948,9 +982,18 @@ impl Default for RealtimeEngine {
 }
 
 // Timing subsystem for precise musical timing
-pub mod timing;
-pub mod samples;
 pub mod patterns;
+pub mod samples;
+pub mod timing;
+
+// Audio processing subsystem for synthesis and streaming
+pub mod audio;
+
+// Beat visualization subsystem for musical displays
+pub mod visualization;
+
+// Configuration management subsystem for application settings
+pub mod config;
 
 #[cfg(test)]
 mod tests {
@@ -1008,17 +1051,21 @@ mod tests {
         let samples = generate_wave(Waveform::Triangle, 1.0, 1.0, 8);
         assert_eq!(samples.len(), 8);
 
-
         // Triangle wave: starts at -1, goes to 1, back to -1
         // Values: [-1.0, -0.5, 0.0, 0.5, 1.0, 0.5, 0.0, -0.5]
         assert!((samples[0] - (-1.0)).abs() < TOLERANCE);
-        assert!((samples[4] - 1.0).abs() < TOLERANCE);  // Peak at sample 4
-        assert!((samples[2] - 0.0).abs() < TOLERANCE);  // Zero crossing at sample 2
+        assert!((samples[4] - 1.0).abs() < TOLERANCE); // Peak at sample 4
+        assert!((samples[2] - 0.0).abs() < TOLERANCE); // Zero crossing at sample 2
     }
 
     #[test]
     fn test_sample_range() {
-        let waveforms = [Waveform::Sine, Waveform::Square, Waveform::Sawtooth, Waveform::Triangle];
+        let waveforms = [
+            Waveform::Sine,
+            Waveform::Square,
+            Waveform::Sawtooth,
+            Waveform::Triangle,
+        ];
 
         for waveform in &waveforms {
             let samples = generate_wave(waveform.clone(), 440.0, 0.1, 44100);
@@ -1112,7 +1159,6 @@ mod tests {
 
         let mut samples = vec![1.0; 10]; // 0.1 seconds at 100 samples/sec
         apply_envelope(&mut samples, &envelope, 100);
-
 
         // Should be in attack phase for all samples
         // Attack spans 100 samples (1.0s * 100 samples/sec), but we only have 10 samples
@@ -1311,7 +1357,12 @@ mod tests {
             },
         };
 
-        let waveforms = [Waveform::Sine, Waveform::Square, Waveform::Sawtooth, Waveform::Triangle];
+        let waveforms = [
+            Waveform::Sine,
+            Waveform::Square,
+            Waveform::Sawtooth,
+            Waveform::Triangle,
+        ];
 
         for waveform in &waveforms {
             let mut event = base_event.clone();
@@ -1687,8 +1738,14 @@ mod tests {
             }
         }
 
-        assert!(timeline_differs_from_sine, "Mixed timeline should differ from sine alone");
-        assert!(timeline_differs_from_square, "Mixed timeline should differ from square alone");
+        assert!(
+            timeline_differs_from_sine,
+            "Mixed timeline should differ from sine alone"
+        );
+        assert!(
+            timeline_differs_from_square,
+            "Mixed timeline should differ from square alone"
+        );
     }
 
     #[test]
@@ -1882,13 +1939,15 @@ mod tests {
         let dt = 0.01; // 10ms steps
 
         // Attack phase
-        for _ in 0..11 {  // Need one extra step to fully complete attack
+        for _ in 0..11 {
+            // Need one extra step to fully complete attack
             envelope_state.update(&envelope, dt, false);
         }
         assert_eq!(envelope_state.phase, EnvelopePhase::Decay);
 
         // Decay phase
-        for _ in 0..11 {  // Need one extra step to fully complete decay
+        for _ in 0..11 {
+            // Need one extra step to fully complete decay
             envelope_state.update(&envelope, dt, false);
         }
         assert_eq!(envelope_state.phase, EnvelopePhase::Sustain);
@@ -1906,7 +1965,8 @@ mod tests {
         assert_eq!(envelope_state.phase, EnvelopePhase::Release);
 
         // Release phase
-        for _ in 0..11 {  // Need one extra step to fully complete release
+        for _ in 0..11 {
+            // Need one extra step to fully complete release
             envelope_state.update(&envelope, dt, false);
         }
         assert_eq!(envelope_state.phase, EnvelopePhase::Finished);
@@ -2027,7 +2087,10 @@ mod tests {
 
         // Should have generated mixed audio
         let has_audio = buffer.iter().any(|&s| s.abs() > 0.1);
-        assert!(has_audio, "Engine should generate mixed audio for multiple voices");
+        assert!(
+            has_audio,
+            "Engine should generate mixed audio for multiple voices"
+        );
 
         // Release all notes
         engine.release_all_notes();
@@ -2072,7 +2135,10 @@ mod tests {
         engine.process_buffer(&mut buffer);
 
         let has_audio = buffer.iter().any(|&s| s.abs() > 0.01);
-        assert!(has_audio, "Engine should still generate audio after voice stealing");
+        assert!(
+            has_audio,
+            "Engine should still generate audio after voice stealing"
+        );
     }
 
     #[test]
@@ -2095,7 +2161,10 @@ mod tests {
 
         // Check that left and right channels are identical (mono signal)
         for chunk in stereo_buffer.chunks_exact(2) {
-            assert!((chunk[0] - chunk[1]).abs() < TOLERANCE, "Left and right channels should be identical");
+            assert!(
+                (chunk[0] - chunk[1]).abs() < TOLERANCE,
+                "Left and right channels should be identical"
+            );
         }
 
         // Should have generated audio
@@ -2140,7 +2209,10 @@ mod tests {
         buffer.fill(0.0);
         engine.process_buffer(&mut buffer);
         let max_amplitude_zero = buffer.iter().map(|s| s.abs()).fold(0.0, f32::max);
-        assert!(max_amplitude_zero < 0.001, "Zero volume should produce silent output");
+        assert!(
+            max_amplitude_zero < 0.001,
+            "Zero volume should produce silent output"
+        );
     }
 
     #[test]
@@ -2156,9 +2228,9 @@ mod tests {
 
         // Trigger a C Major chord
         let chord_notes = &[
-            (Waveform::Sine, 261.63),    // C
-            (Waveform::Sine, 329.63),    // E
-            (Waveform::Sine, 392.00),    // G
+            (Waveform::Sine, 261.63), // C
+            (Waveform::Sine, 329.63), // E
+            (Waveform::Sine, 392.00), // G
         ];
 
         let voice_ids = engine.trigger_chord(chord_notes, envelope);
@@ -2191,7 +2263,9 @@ mod tests {
         };
 
         // Trigger a note
-        let voice_id = engine.trigger_note(Waveform::Sine, 440.0, envelope).unwrap();
+        let voice_id = engine
+            .trigger_note(Waveform::Sine, 440.0, envelope)
+            .unwrap();
 
         // Update voice frequency
         engine.set_voice_frequency(voice_id, 880.0);
@@ -2204,7 +2278,10 @@ mod tests {
         engine.process_buffer(&mut buffer);
 
         let has_audio = buffer.iter().any(|&s| s.abs() > 0.01);
-        assert!(has_audio, "Engine should generate audio with updated parameters");
+        assert!(
+            has_audio,
+            "Engine should generate audio with updated parameters"
+        );
     }
 
     #[test]

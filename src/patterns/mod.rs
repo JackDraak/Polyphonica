@@ -1,3 +1,8 @@
+pub mod builder;
+pub mod collections;
+pub mod io;
+pub mod library;
+pub mod state;
 /// Pattern library module for rhythm and drum patterns
 ///
 /// This module provides a comprehensive pattern system for creating and managing
@@ -12,18 +17,12 @@
 /// - `state`: Pattern playback state management
 /// - `collections`: Genre-specific pattern collections
 /// - `io`: JSON import/export functionality
-
 pub mod types;
-pub mod library;
-pub mod builder;
-pub mod state;
-pub mod collections;
-pub mod io;
 
 // Re-export commonly used types
-pub use types::{DrumPattern, DrumPatternBeat, PatternMetadata};
-pub use library::PatternLibrary;
 pub use builder::PatternBuilder;
-pub use state::PatternState;
 pub use collections::*;
 pub use io::{PatternCatalog, PatternIoError};
+pub use library::PatternLibrary;
+pub use state::PatternState;
+pub use types::{DrumPattern, DrumPatternBeat, PatternMetadata};

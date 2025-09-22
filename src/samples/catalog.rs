@@ -3,7 +3,6 @@
 /// This module provides structured metadata and configuration for samples,
 /// including categorization, envelope settings, and organizational tools
 /// for managing large sample libraries.
-
 use crate::AdsrEnvelope;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -295,7 +294,12 @@ impl SampleCatalog {
     pub fn get_by_category(&self, category: &SampleCategory) -> Vec<&SampleMetadata> {
         self.category_index
             .get(category)
-            .map(|names| names.iter().filter_map(|name| self.samples.get(name)).collect())
+            .map(|names| {
+                names
+                    .iter()
+                    .filter_map(|name| self.samples.get(name))
+                    .collect()
+            })
             .unwrap_or_else(Vec::new)
     }
 
@@ -303,7 +307,12 @@ impl SampleCatalog {
     pub fn search_by_tag(&self, tag: &str) -> Vec<&SampleMetadata> {
         self.tag_index
             .get(tag)
-            .map(|names| names.iter().filter_map(|name| self.samples.get(name)).collect())
+            .map(|names| {
+                names
+                    .iter()
+                    .filter_map(|name| self.samples.get(name))
+                    .collect()
+            })
             .unwrap_or_else(Vec::new)
     }
 
@@ -400,8 +409,8 @@ mod tests {
     fn test_tag_search() {
         let mut catalog = SampleCatalog::new();
 
-        let kick = SampleMetadata::drum("kick", "drums/kick.wav", DrumType::Kick)
-            .with_tag("acoustic");
+        let kick =
+            SampleMetadata::drum("kick", "drums/kick.wav", DrumType::Kick).with_tag("acoustic");
         catalog.add_sample(kick);
 
         let acoustic_samples = catalog.search_by_tag("acoustic");

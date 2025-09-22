@@ -2,8 +2,7 @@
 ///
 /// This example shows how to use Polyphonica's real-time engine for streaming audio synthesis.
 /// Perfect for integration into applications requiring procedural music generation.
-
-use polyphonica::{RealtimeEngine, Waveform, AdsrEnvelope};
+use polyphonica::{AdsrEnvelope, RealtimeEngine, Waveform};
 use std::time::Duration;
 
 fn main() {
@@ -21,12 +20,19 @@ fn main() {
         release_secs: 0.5,  // Smooth release
     };
 
-    println!("🚀 Engine initialized with {} max voices", polyphonica::MAX_VOICES);
+    println!(
+        "🚀 Engine initialized with {} max voices",
+        polyphonica::MAX_VOICES
+    );
 
     // Trigger individual notes
     println!("\n🎹 Triggering individual notes...");
-    let voice_a = engine.trigger_note(Waveform::Sine, 440.0, envelope.clone()).unwrap();
-    let voice_c = engine.trigger_note(Waveform::Square, 523.25, envelope.clone()).unwrap();
+    let voice_a = engine
+        .trigger_note(Waveform::Sine, 440.0, envelope.clone())
+        .unwrap();
+    let voice_c = engine
+        .trigger_note(Waveform::Square, 523.25, envelope.clone())
+        .unwrap();
 
     println!("   ♪ A4 (440Hz) - Voice ID: {}", voice_a);
     println!("   ♪ C5 (523Hz) - Voice ID: {}", voice_c);
@@ -47,20 +53,26 @@ fn main() {
     // Trigger a chord
     println!("\n🎼 Triggering C Major chord...");
     let chord_notes = &[
-        (Waveform::Sine, 261.63),    // C4
-        (Waveform::Sine, 329.63),    // E4
-        (Waveform::Sine, 392.00),    // G4
+        (Waveform::Sine, 261.63), // C4
+        (Waveform::Sine, 329.63), // E4
+        (Waveform::Sine, 392.00), // G4
     ];
 
     let chord_voices = engine.trigger_chord(chord_notes, envelope.clone());
     println!("   Chord voice IDs: {:?}", chord_voices);
-    println!("   Total active voices: {}", engine.get_active_voice_count());
+    println!(
+        "   Total active voices: {}",
+        engine.get_active_voice_count()
+    );
 
     // Process chord audio
     for frame in 0..5 {
         engine.process_buffer(&mut buffer);
         let max_amplitude = buffer.iter().map(|s| s.abs()).fold(0.0, f32::max);
-        println!("   Chord frame {}: max amplitude = {:.3}", frame, max_amplitude);
+        println!(
+            "   Chord frame {}: max amplitude = {:.3}",
+            frame, max_amplitude
+        );
         std::thread::sleep(Duration::from_millis(20));
     }
 
@@ -76,7 +88,10 @@ fn main() {
     for frame in 0..3 {
         engine.process_buffer(&mut buffer);
         let max_amplitude = buffer.iter().map(|s| s.abs()).fold(0.0, f32::max);
-        println!("   Updated frame {}: max amplitude = {:.3}", frame, max_amplitude);
+        println!(
+            "   Updated frame {}: max amplitude = {:.3}",
+            frame, max_amplitude
+        );
         std::thread::sleep(Duration::from_millis(20));
     }
 
@@ -95,8 +110,10 @@ fn main() {
         let active_voices = engine.get_active_voice_count();
         let max_amplitude = buffer.iter().map(|s| s.abs()).fold(0.0, f32::max);
 
-        println!("   Release frame {}: {} voices, amplitude = {:.3}",
-                frame, active_voices, max_amplitude);
+        println!(
+            "   Release frame {}: {} voices, amplitude = {:.3}",
+            frame, active_voices, max_amplitude
+        );
 
         if active_voices == 0 {
             break;
@@ -114,8 +131,11 @@ fn main() {
         }
     }
 
-    println!("   Final active voices: {} (max: {})",
-             engine.get_active_voice_count(), polyphonica::MAX_VOICES);
+    println!(
+        "   Final active voices: {} (max: {})",
+        engine.get_active_voice_count(),
+        polyphonica::MAX_VOICES
+    );
 
     // Panic stop test
     println!("\n🛑 Testing panic stop...");
@@ -126,14 +146,20 @@ fn main() {
     // Final silence verification
     engine.process_buffer(&mut buffer);
     let silence_amplitude = buffer.iter().map(|s| s.abs()).fold(0.0, f32::max);
-    println!("   Silence verification: max amplitude = {:.6}", silence_amplitude);
+    println!(
+        "   Silence verification: max amplitude = {:.6}",
+        silence_amplitude
+    );
 
     println!("\n✅ Real-time engine demonstration complete!");
     println!("🎵 Engine is ready for real-time audio integration");
 
     // Performance summary
     println!("\n📊 Engine Capabilities:");
-    println!("   • {} concurrent voices with voice stealing", polyphonica::MAX_VOICES);
+    println!(
+        "   • {} concurrent voices with voice stealing",
+        polyphonica::MAX_VOICES
+    );
     println!("   • Lock-free parameter updates");
     println!("   • Zero-allocation audio processing");
     println!("   • CPAL-compatible buffer interface");

@@ -2,9 +2,8 @@
 ///
 /// This module provides a straightforward metronome that plays regular beats
 /// at a specified tempo and time signature.
-
 use super::clock::{BeatClock, DiscreteScheduler};
-use super::types::{TimeSignature, BeatEvent, ClickType, TriggerResult};
+use super::types::{BeatEvent, ClickType, TimeSignature, TriggerResult};
 
 /// Simple metronome for regular beat timing
 ///

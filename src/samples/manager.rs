@@ -1,13 +1,12 @@
+use super::catalog::SampleMetadata;
+use super::library::{SampleError, SampleLibrary};
+use crate::{AdsrEnvelope, Waveform};
 /// Real-time sample playback and triggering management
 ///
 /// This module provides zero-allocation sample triggering for real-time
 /// audio applications. It integrates with the sample library for loading
 /// and provides efficient playback with real-time guarantees.
-
 use std::sync::{Arc, Mutex};
-use crate::{Waveform, AdsrEnvelope};
-use super::library::{SampleLibrary, SampleError};
-use super::catalog::SampleMetadata;
 
 /// Real-time sample playback manager
 ///
@@ -75,10 +74,10 @@ impl SampleManager {
             library: Arc::new(Mutex::new(library)),
             trigger_cache: std::collections::HashMap::new(),
             default_envelope: AdsrEnvelope {
-                attack_secs: 0.002,   // Very fast attack for percussive samples
-                decay_secs: 0.1,      // Quick decay
-                sustain_level: 0.3,   // Low sustain for drums
-                release_secs: 0.2,    // Natural release
+                attack_secs: 0.002, // Very fast attack for percussive samples
+                decay_secs: 0.1,    // Quick decay
+                sustain_level: 0.3, // Low sustain for drums
+                release_secs: 0.2,  // Natural release
             },
         }
     }
@@ -191,7 +190,10 @@ impl SampleManager {
     }
 
     /// Prepare multiple samples from metadata
-    pub fn prepare_samples_from_metadata(&mut self, samples: &[SampleMetadata]) -> Result<Vec<String>, SampleError> {
+    pub fn prepare_samples_from_metadata(
+        &mut self,
+        samples: &[SampleMetadata],
+    ) -> Result<Vec<String>, SampleError> {
         let mut failed = Vec::new();
 
         for metadata in samples {
@@ -208,7 +210,10 @@ impl SampleManager {
         if failed.is_empty() {
             Ok(failed)
         } else {
-            Err(SampleError::LoadError(format!("Failed to load {} samples", failed.len())))
+            Err(SampleError::LoadError(format!(
+                "Failed to load {} samples",
+                failed.len()
+            )))
         }
     }
 }

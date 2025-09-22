@@ -1,3 +1,5 @@
+pub mod catalog;
+pub mod drumkit;
 /// Sample management subsystem for Polyphonica
 ///
 /// This module provides comprehensive sample loading, caching, and playback
@@ -34,14 +36,11 @@
 /// # Ok(())
 /// # }
 /// ```
-
 pub mod library;
 pub mod manager;
-pub mod catalog;
-pub mod drumkit;
 
 // Re-export core types for convenient access
-pub use library::SampleLibrary;
-pub use manager::SampleManager;
 pub use catalog::{SampleCatalog, SampleMetadata};
 pub use drumkit::{DrumKit, DrumSample};
+pub use library::SampleLibrary;
+pub use manager::SampleManager;

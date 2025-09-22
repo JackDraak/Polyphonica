@@ -3,9 +3,8 @@
 /// This module provides a fluent API for creating custom drum patterns with
 /// validation, error handling, and intelligent pattern analysis. The builder
 /// ensures patterns are valid and provides helpful feedback for pattern creation.
-
 use super::types::{DrumPattern, DrumPatternBeat, PatternGenre};
-use crate::timing::{TimeSignature, ClickType};
+use crate::timing::{ClickType, TimeSignature};
 
 /// Fluent builder for creating drum patterns
 pub struct PatternBuilder {
@@ -38,12 +37,24 @@ pub enum PatternValidationError {
 impl std::fmt::Display for PatternValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PatternValidationError::EmptyPattern => write!(f, "Pattern must have at least one beat"),
-            PatternValidationError::InvalidBeatPosition(pos) => write!(f, "Invalid beat position: {}", pos),
-            PatternValidationError::EmptyBeat(pos) => write!(f, "Beat at position {} has no samples", pos),
-            PatternValidationError::DuplicateBeatPosition(pos) => write!(f, "Duplicate beat at position {}", pos),
-            PatternValidationError::InvalidName(name) => write!(f, "Invalid pattern name: {}", name),
-            PatternValidationError::InvalidTempoRange(min, max) => write!(f, "Invalid tempo range: {}-{} BPM", min, max),
+            PatternValidationError::EmptyPattern => {
+                write!(f, "Pattern must have at least one beat")
+            }
+            PatternValidationError::InvalidBeatPosition(pos) => {
+                write!(f, "Invalid beat position: {}", pos)
+            }
+            PatternValidationError::EmptyBeat(pos) => {
+                write!(f, "Beat at position {} has no samples", pos)
+            }
+            PatternValidationError::DuplicateBeatPosition(pos) => {
+                write!(f, "Duplicate beat at position {}", pos)
+            }
+            PatternValidationError::InvalidName(name) => {
+                write!(f, "Invalid pattern name: {}", name)
+            }
+            PatternValidationError::InvalidTempoRange(min, max) => {
+                write!(f, "Invalid tempo range: {}-{} BPM", min, max)
+            }
         }
     }
 }
@@ -68,9 +79,13 @@ impl PatternBuilder {
     /// Set tempo range with validation
     pub fn tempo_range(mut self, min_bpm: u32, max_bpm: u32) -> Self {
         if min_bpm >= max_bpm {
-            self.errors.push(format!("Invalid tempo range: {} >= {}", min_bpm, max_bpm));
+            self.errors
+                .push(format!("Invalid tempo range: {} >= {}", min_bpm, max_bpm));
         } else if min_bpm == 0 || max_bpm > 300 {
-            self.errors.push(format!("Tempo range out of bounds: {}-{} (should be 1-300)", min_bpm, max_bpm));
+            self.errors.push(format!(
+                "Tempo range out of bounds: {}-{} (should be 1-300)",
+                min_bpm, max_bpm
+            ));
         } else {
             self.pattern.tempo_range = (min_bpm, max_bpm);
         }
@@ -111,7 +126,10 @@ impl PatternBuilder {
 
     /// Add custom metadata
     pub fn custom_field(mut self, key: &str, value: &str) -> Self {
-        self.pattern.metadata.custom_fields.insert(key.to_string(), value.to_string());
+        self.pattern
+            .metadata
+            .custom_fields
+            .insert(key.to_string(), value.to_string());
         self
     }
 
@@ -161,7 +179,8 @@ impl PatternBuilder {
                     // Rest - just advance position
                 }
                 _ => {
-                    self.errors.push(format!("Unknown notation character: '{}'", ch));
+                    self.errors
+                        .push(format!("Unknown notation character: '{}'", ch));
                 }
             }
             position += step;
@@ -176,7 +195,9 @@ impl PatternBuilder {
 
         // Check pattern name
         if self.pattern.name.is_empty() {
-            errors.push(PatternValidationError::InvalidName("Pattern name cannot be empty".to_string()));
+            errors.push(PatternValidationError::InvalidName(
+                "Pattern name cannot be empty".to_string(),
+            ));
         }
 
         // Check if pattern has beats
@@ -198,7 +219,9 @@ impl PatternBuilder {
         for beat in &self.pattern.beats {
             // Check position validity
             if beat.beat_position < 1.0 || beat.beat_position > max_position {
-                errors.push(PatternValidationError::InvalidBeatPosition(beat.beat_position));
+                errors.push(PatternValidationError::InvalidBeatPosition(
+                    beat.beat_position,
+                ));
             }
 
             // Check for empty beats
@@ -209,7 +232,9 @@ impl PatternBuilder {
             // Check for duplicates (with small tolerance for floating point)
             let pos_key = (beat.beat_position * 100.0) as i32;
             if positions.contains(&pos_key) {
-                errors.push(PatternValidationError::DuplicateBeatPosition(beat.beat_position));
+                errors.push(PatternValidationError::DuplicateBeatPosition(
+                    beat.beat_position,
+                ));
             } else {
                 positions.insert(pos_key);
             }
@@ -226,16 +251,20 @@ impl PatternBuilder {
     pub fn build(mut self) -> Result<DrumPattern, Vec<PatternValidationError>> {
         // Add any builder-level errors
         if !self.errors.is_empty() {
-            return Err(self.errors.into_iter().map(|msg| {
-                PatternValidationError::InvalidName(msg)
-            }).collect());
+            return Err(self
+                .errors
+                .into_iter()
+                .map(|msg| PatternValidationError::InvalidName(msg))
+                .collect());
         }
 
         // Validate the pattern
         self.validate()?;
 
         // Sort beats by position
-        self.pattern.beats.sort_by(|a, b| a.beat_position.partial_cmp(&b.beat_position).unwrap());
+        self.pattern
+            .beats
+            .sort_by(|a, b| a.beat_position.partial_cmp(&b.beat_position).unwrap());
 
         Ok(self.pattern)
     }
@@ -247,7 +276,11 @@ impl PatternBuilder {
             Err(_) => {
                 // Return a simple default pattern
                 DrumPattern::new("default", TimeSignature::new(4, 4))
-                    .with_beat(DrumPatternBeat::new(1.0).with_sample(ClickType::AcousticKick).with_accent(true))
+                    .with_beat(
+                        DrumPatternBeat::new(1.0)
+                            .with_sample(ClickType::AcousticKick)
+                            .with_accent(true),
+                    )
                     .with_beat(DrumPatternBeat::new(2.0).with_sample(ClickType::AcousticSnare))
                     .with_beat(DrumPatternBeat::new(3.0).with_sample(ClickType::AcousticKick))
                     .with_beat(DrumPatternBeat::new(4.0).with_sample(ClickType::AcousticSnare))
@@ -429,12 +462,13 @@ mod tests {
 
     #[test]
     fn test_pattern_validation_empty() {
-        let result = PatternBuilder::new("empty", TimeSignature::new(4, 4))
-            .build();
+        let result = PatternBuilder::new("empty", TimeSignature::new(4, 4)).build();
 
         assert!(result.is_err());
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| matches!(e, PatternValidationError::EmptyPattern)));
+        assert!(errors
+            .iter()
+            .any(|e| matches!(e, PatternValidationError::EmptyPattern)));
     }
 
     #[test]
@@ -445,7 +479,9 @@ mod tests {
 
         assert!(result.is_err());
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| matches!(e, PatternValidationError::InvalidBeatPosition(_))));
+        assert!(errors
+            .iter()
+            .any(|e| matches!(e, PatternValidationError::InvalidBeatPosition(_))));
     }
 
     #[test]
@@ -460,8 +496,7 @@ mod tests {
 
     #[test]
     fn test_build_or_default() {
-        let pattern = PatternBuilder::new("", TimeSignature::new(4, 4))
-            .build_or_default();
+        let pattern = PatternBuilder::new("", TimeSignature::new(4, 4)).build_or_default();
 
         assert_eq!(pattern.name, "default");
         assert!(!pattern.beats.is_empty());

@@ -4,8 +4,7 @@
 /// drum patterns, rhythms, and musical arrangements. These types are designed
 /// to integrate seamlessly with the timing system while providing flexibility
 /// for complex rhythmic patterns.
-
-use crate::timing::{TimeSignature, ClickType};
+use crate::timing::{ClickType, TimeSignature};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -189,7 +188,8 @@ impl DrumPattern {
 
     /// Get pattern duration in beats
     pub fn duration_beats(&self) -> f32 {
-        self.beats.iter()
+        self.beats
+            .iter()
             .map(|beat| beat.beat_position)
             .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
             .unwrap_or(self.time_signature.beats_per_measure as f32)
@@ -197,7 +197,8 @@ impl DrumPattern {
 
     /// Get all beats at a specific position
     pub fn beats_at_position(&self, position: f32) -> Vec<&DrumPatternBeat> {
-        self.beats.iter()
+        self.beats
+            .iter()
             .filter(|beat| (beat.beat_position - position).abs() < 0.01)
             .collect()
     }
@@ -205,7 +206,9 @@ impl DrumPattern {
     /// Get pattern complexity score (0-100)
     pub fn complexity_score(&self) -> u8 {
         let beat_count = self.beats.len();
-        let sample_diversity = self.beats.iter()
+        let sample_diversity = self
+            .beats
+            .iter()
             .flat_map(|beat| &beat.samples)
             .collect::<std::collections::HashSet<_>>()
             .len();
@@ -298,8 +301,7 @@ mod tests {
 
     #[test]
     fn test_tempo_suitability() {
-        let pattern = DrumPattern::new("test", TimeSignature::new(4, 4))
-            .with_tempo_range(80, 120);
+        let pattern = DrumPattern::new("test", TimeSignature::new(4, 4)).with_tempo_range(80, 120);
 
         assert!(pattern.is_tempo_suitable(100));
         assert!(!pattern.is_tempo_suitable(60));
@@ -312,7 +314,11 @@ mod tests {
 
         // Add some beats with different samples
         pattern = pattern
-            .with_beat(DrumPatternBeat::new(1.0).with_sample(ClickType::AcousticKick).with_accent(true))
+            .with_beat(
+                DrumPatternBeat::new(1.0)
+                    .with_sample(ClickType::AcousticKick)
+                    .with_accent(true),
+            )
             .with_beat(DrumPatternBeat::new(2.0).with_sample(ClickType::AcousticSnare))
             .with_beat(DrumPatternBeat::new(3.0).with_sample(ClickType::HiHatClosed));
 

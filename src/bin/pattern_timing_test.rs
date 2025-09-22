@@ -15,7 +15,9 @@ struct TimeSignature {
 
 impl TimeSignature {
     fn new(beats: u8, _note_value: u8) -> Self {
-        Self { beats_per_measure: beats }
+        Self {
+            beats_per_measure: beats,
+        }
     }
 }
 
@@ -30,14 +32,38 @@ impl DrumPattern {
         Self {
             time_signature: TimeSignature::new(4, 4),
             beats: vec![
-                DrumPatternBeat { beat_position: 1.0, accent: true },
-                DrumPatternBeat { beat_position: 1.5, accent: false },
-                DrumPatternBeat { beat_position: 2.0, accent: false },
-                DrumPatternBeat { beat_position: 2.5, accent: false },
-                DrumPatternBeat { beat_position: 3.0, accent: false },
-                DrumPatternBeat { beat_position: 3.5, accent: false },
-                DrumPatternBeat { beat_position: 4.0, accent: false },
-                DrumPatternBeat { beat_position: 4.5, accent: false },
+                DrumPatternBeat {
+                    beat_position: 1.0,
+                    accent: true,
+                },
+                DrumPatternBeat {
+                    beat_position: 1.5,
+                    accent: false,
+                },
+                DrumPatternBeat {
+                    beat_position: 2.0,
+                    accent: false,
+                },
+                DrumPatternBeat {
+                    beat_position: 2.5,
+                    accent: false,
+                },
+                DrumPatternBeat {
+                    beat_position: 3.0,
+                    accent: false,
+                },
+                DrumPatternBeat {
+                    beat_position: 3.5,
+                    accent: false,
+                },
+                DrumPatternBeat {
+                    beat_position: 4.0,
+                    accent: false,
+                },
+                DrumPatternBeat {
+                    beat_position: 4.5,
+                    accent: false,
+                },
             ],
         }
     }
@@ -93,7 +119,9 @@ impl PatternState {
                 }
 
                 // Find beats at position 1.0
-                let first_beat_triggers: Vec<(bool, f32)> = pattern.beats.iter()
+                let first_beat_triggers: Vec<(bool, f32)> = pattern
+                    .beats
+                    .iter()
                     .filter(|beat| (beat.beat_position - 1.0).abs() < 0.01)
                     .map(|beat| (beat.accent, beat.beat_position))
                     .collect();
@@ -162,7 +190,8 @@ impl PatternState {
             // Looped back to start - calculate time to beat 1 of next measure
             let current_beat_in_pattern = &pattern.beats[pattern.beats.len() - 1];
             let loop_point = pattern.time_signature.beats_per_measure as f32 + 1.0;
-            let remaining_time = (loop_point - current_beat_in_pattern.beat_position) as f64 * beat_interval_ms;
+            let remaining_time =
+                (loop_point - current_beat_in_pattern.beat_position) as f64 * beat_interval_ms;
             let next_beat_time = (next_beat_position - 1.0) as f64 * beat_interval_ms;
             remaining_time + next_beat_time
         } else {
@@ -201,7 +230,10 @@ fn main() {
     let expected_measure_duration_ms = expected_beat_interval_ms * 4.0; // 2000ms per measure
 
     println!("Expected beat interval: {:.1}ms", expected_beat_interval_ms);
-    println!("Expected measure duration: {:.1}ms", expected_measure_duration_ms);
+    println!(
+        "Expected measure duration: {:.1}ms",
+        expected_measure_duration_ms
+    );
     println!();
 
     let start_time = Instant::now();
@@ -214,7 +246,11 @@ fn main() {
         let triggers = pattern_state.check_pattern_triggers(tempo_bpm);
 
         if !triggers.is_empty() {
-            println!("Triggers: {:?}, Position: {:.3}", triggers, pattern_state.get_current_beat_position());
+            println!(
+                "Triggers: {:?}, Position: {:.3}",
+                triggers,
+                pattern_state.get_current_beat_position()
+            );
         }
 
         for (is_accent, beat_position) in triggers {
@@ -228,8 +264,13 @@ fn main() {
                     measure_intervals.push(interval);
 
                     let error = interval as f64 - expected_measure_duration_ms;
-                    println!("Measure {}: {:.0}ms (error: {:+.1}ms, position: {:.3})",
-                             measure_count, interval, error, pattern_state.get_current_beat_position());
+                    println!(
+                        "Measure {}: {:.0}ms (error: {:+.1}ms, position: {:.3})",
+                        measure_count,
+                        interval,
+                        error,
+                        pattern_state.get_current_beat_position()
+                    );
 
                     // Flag significant timing errors
                     if error.abs() > 10.0 {
@@ -250,11 +291,15 @@ fn main() {
     println!("Measures captured: {}", measure_intervals.len());
 
     if !measure_intervals.is_empty() {
-        let avg_interval: f64 = measure_intervals.iter().map(|&x| x as f64).sum::<f64>() / measure_intervals.len() as f64;
+        let avg_interval: f64 = measure_intervals.iter().map(|&x| x as f64).sum::<f64>()
+            / measure_intervals.len() as f64;
         let min_interval = *measure_intervals.iter().min().unwrap();
         let max_interval = *measure_intervals.iter().max().unwrap();
 
-        println!("Average interval: {:.1}ms (expected: {:.1}ms)", avg_interval, expected_measure_duration_ms);
+        println!(
+            "Average interval: {:.1}ms (expected: {:.1}ms)",
+            avg_interval, expected_measure_duration_ms
+        );
         println!("Min interval: {}ms", min_interval);
         println!("Max interval: {}ms", max_interval);
         println!("Range: {}ms", max_interval - min_interval);
@@ -264,7 +309,10 @@ fn main() {
 
         if avg_error.abs() > 5.0 {
             println!("❌ SIGNIFICANT TIMING DRIFT DETECTED!");
-        } else if measure_intervals.iter().any(|&x| (x as f64 - expected_measure_duration_ms).abs() > 10.0) {
+        } else if measure_intervals
+            .iter()
+            .any(|&x| (x as f64 - expected_measure_duration_ms).abs() > 10.0)
+        {
             println!("⚠️  TIMING SPIKES DETECTED!");
         } else {
             println!("✅ Timing within acceptable range");

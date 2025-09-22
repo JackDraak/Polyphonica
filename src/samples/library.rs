@@ -1,12 +1,11 @@
+use crate::SampleData;
 /// Sample loading and caching with intelligent memory management
 ///
 /// This module provides efficient sample loading with caching, supporting
 /// multiple file formats and intelligent memory management for real-time
 /// audio applications.
-
 use std::collections::HashMap;
 use std::path::Path;
-use crate::SampleData;
 
 /// High-level sample library with intelligent caching
 ///
@@ -81,14 +80,19 @@ impl SampleLibrary {
 
     /// Add a search path for samples
     pub fn add_search_path<P: AsRef<Path>>(&mut self, path: P) {
-        self.search_paths.push(path.as_ref().to_string_lossy().to_string());
+        self.search_paths
+            .push(path.as_ref().to_string_lossy().to_string());
     }
 
     /// Load a sample by name
     ///
     /// Attempts to load the sample from the cache first, then from disk
     /// if not cached. Supports automatic path resolution with fallbacks.
-    pub fn load_sample(&mut self, name: &str, base_frequency: f32) -> Result<SampleData, SampleError> {
+    pub fn load_sample(
+        &mut self,
+        name: &str,
+        base_frequency: f32,
+    ) -> Result<SampleData, SampleError> {
         // Check cache first
         if let Some(cached) = self.cache.get_mut(name) {
             // Update LRU tracking
@@ -119,7 +123,12 @@ impl SampleLibrary {
     }
 
     /// Load a sample from a specific file path
-    pub fn load_sample_from_path<P: AsRef<Path>>(&mut self, name: &str, path: P, base_frequency: f32) -> Result<SampleData, SampleError> {
+    pub fn load_sample_from_path<P: AsRef<Path>>(
+        &mut self,
+        name: &str,
+        path: P,
+        base_frequency: f32,
+    ) -> Result<SampleData, SampleError> {
         // Check cache first
         if let Some(cached) = self.cache.get_mut(name) {
             cached.access_count += 1;
@@ -176,8 +185,9 @@ impl SampleLibrary {
             for ext in &extensions {
                 let full_path = format!("{}/{}.{}", search_path, name, ext);
                 if Path::new(&full_path).exists() {
-                    return SampleData::from_file(&full_path, base_frequency)
-                        .map_err(|e| SampleError::LoadError(format!("Failed to load {}: {}", full_path, e)));
+                    return SampleData::from_file(&full_path, base_frequency).map_err(|e| {
+                        SampleError::LoadError(format!("Failed to load {}: {}", full_path, e))
+                    });
                 }
             }
         }

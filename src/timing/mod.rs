@@ -1,3 +1,7 @@
+pub mod clock;
+pub mod metronome;
+pub mod patterns;
+pub mod tracker;
 /// Timing subsystem for Polyphonica - Precision timing for musical applications
 ///
 /// This module provides the core timing infrastructure for Guitar Buddy and other
@@ -32,16 +36,11 @@
 ///     // Trigger audio samples based on beat events
 /// }
 /// ```
-
 pub mod types;
-pub mod clock;
-pub mod metronome;
-pub mod patterns;
-pub mod tracker;
 
 // Re-export core types for convenient access
-pub use types::{TimeSignature, BeatEvent, ClickType};
 pub use clock::BeatClock;
 pub use metronome::Metronome;
 pub use patterns::PatternPlayer;
-pub use tracker::{BeatTracker, BeatObserver};
+pub use tracker::{BeatObserver, BeatTracker};
+pub use types::{BeatEvent, ClickType, TimeSignature};

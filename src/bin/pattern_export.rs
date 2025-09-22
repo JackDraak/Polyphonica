@@ -3,8 +3,10 @@
 /// This utility exports all code-based patterns to the JSON catalog format,
 /// ensuring external tools have access to the complete pattern library while
 /// maintaining code as the primary source of truth.
-
-use polyphonica::patterns::{PatternCatalog, PatternLibrary, RockPatterns, JazzPatterns, LatinPatterns, FunkPatterns, PopPatterns, ElectronicPatterns};
+use polyphonica::patterns::{
+    ElectronicPatterns, FunkPatterns, JazzPatterns, LatinPatterns, PatternCatalog, PatternLibrary,
+    PopPatterns, RockPatterns,
+};
 use std::env;
 use std::fs;
 

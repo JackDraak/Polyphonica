@@ -3,8 +3,7 @@
 /// This module provides pre-configured drum kits and collections for
 /// easy setup of common drum configurations. It integrates with the
 /// timing module's ClickType for seamless metronome and pattern usage.
-
-use super::catalog::{SampleMetadata, DrumType};
+use super::catalog::{DrumType, SampleMetadata};
 use crate::timing::ClickType;
 use crate::AdsrEnvelope;
 use serde::{Deserialize, Serialize};
@@ -92,7 +91,10 @@ impl DrumKit {
 
     /// Get all samples as metadata for loading
     pub fn all_sample_metadata(&self) -> Vec<SampleMetadata> {
-        self.samples.values().map(|sample| sample.metadata.clone()).collect()
+        self.samples
+            .values()
+            .map(|sample| sample.metadata.clone())
+            .collect()
     }
 
     /// Get click types supported by this kit
@@ -119,14 +121,18 @@ impl DrumKit {
 
         // Kick drum
         let kick_sample = DrumSample {
-            metadata: SampleMetadata::drum("kick", "samples/drums/acoustic/kit_01/drumkit-kick.wav", DrumType::Kick)
-                .with_volume(1.0)
-                .with_envelope(AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.15,
-                    sustain_level: 0.2,
-                    release_secs: 0.3,
-                }),
+            metadata: SampleMetadata::drum(
+                "kick",
+                "samples/drums/acoustic/kit_01/drumkit-kick.wav",
+                DrumType::Kick,
+            )
+            .with_volume(1.0)
+            .with_envelope(AdsrEnvelope {
+                attack_secs: 0.001,
+                decay_secs: 0.15,
+                sustain_level: 0.2,
+                release_secs: 0.3,
+            }),
             click_type: ClickType::AcousticKick,
             velocity_curve: VelocityCurve::Exponential(1.5),
             volume: 1.0,
@@ -135,14 +141,18 @@ impl DrumKit {
 
         // Snare drum
         let snare_sample = DrumSample {
-            metadata: SampleMetadata::drum("snare", "samples/drums/acoustic/kit_01/drumkit-snare.wav", DrumType::Snare)
-                .with_volume(0.9)
-                .with_envelope(AdsrEnvelope {
-                    attack_secs: 0.002,
-                    decay_secs: 0.08,
-                    sustain_level: 0.1,
-                    release_secs: 0.15,
-                }),
+            metadata: SampleMetadata::drum(
+                "snare",
+                "samples/drums/acoustic/kit_01/drumkit-snare.wav",
+                DrumType::Snare,
+            )
+            .with_volume(0.9)
+            .with_envelope(AdsrEnvelope {
+                attack_secs: 0.002,
+                decay_secs: 0.08,
+                sustain_level: 0.1,
+                release_secs: 0.15,
+            }),
             click_type: ClickType::AcousticSnare,
             velocity_curve: VelocityCurve::Exponential(1.2),
             volume: 0.9,
@@ -151,14 +161,18 @@ impl DrumKit {
 
         // Hi-hat closed
         let hihat_closed_sample = DrumSample {
-            metadata: SampleMetadata::drum("hihat", "samples/drums/acoustic/kit_01/drumkit-hihat.wav", DrumType::HiHat)
-                .with_volume(0.7)
-                .with_envelope(AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.05,
-                    sustain_level: 0.0,
-                    release_secs: 0.1,
-                }),
+            metadata: SampleMetadata::drum(
+                "hihat",
+                "samples/drums/acoustic/kit_01/drumkit-hihat.wav",
+                DrumType::HiHat,
+            )
+            .with_volume(0.7)
+            .with_envelope(AdsrEnvelope {
+                attack_secs: 0.001,
+                decay_secs: 0.05,
+                sustain_level: 0.0,
+                release_secs: 0.1,
+            }),
             click_type: ClickType::HiHatClosed,
             velocity_curve: VelocityCurve::Linear,
             volume: 0.7,
@@ -167,14 +181,18 @@ impl DrumKit {
 
         // Hi-hat open
         let hihat_open_sample = DrumSample {
-            metadata: SampleMetadata::drum("hihat_open", "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav", DrumType::HiHat)
-                .with_volume(0.8)
-                .with_envelope(AdsrEnvelope {
-                    attack_secs: 0.002,
-                    decay_secs: 0.2,
-                    sustain_level: 0.3,
-                    release_secs: 0.4,
-                }),
+            metadata: SampleMetadata::drum(
+                "hihat_open",
+                "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav",
+                DrumType::HiHat,
+            )
+            .with_volume(0.8)
+            .with_envelope(AdsrEnvelope {
+                attack_secs: 0.002,
+                decay_secs: 0.2,
+                sustain_level: 0.3,
+                release_secs: 0.4,
+            }),
             click_type: ClickType::HiHatOpen,
             velocity_curve: VelocityCurve::Linear,
             volume: 0.8,
@@ -183,14 +201,18 @@ impl DrumKit {
 
         // Rimshot
         let rimshot_sample = DrumSample {
-            metadata: SampleMetadata::drum("rimshot", "samples/drums/acoustic/kit_01/drumkit-rimshot.wav", DrumType::Snare)
-                .with_volume(0.8)
-                .with_envelope(AdsrEnvelope {
-                    attack_secs: 0.001,
-                    decay_secs: 0.06,
-                    sustain_level: 0.0,
-                    release_secs: 0.12,
-                }),
+            metadata: SampleMetadata::drum(
+                "rimshot",
+                "samples/drums/acoustic/kit_01/drumkit-rimshot.wav",
+                DrumType::Snare,
+            )
+            .with_volume(0.8)
+            .with_envelope(AdsrEnvelope {
+                attack_secs: 0.001,
+                decay_secs: 0.06,
+                sustain_level: 0.0,
+                release_secs: 0.12,
+            }),
             click_type: ClickType::RimShot,
             velocity_curve: VelocityCurve::Linear,
             volume: 0.8,
@@ -199,14 +221,18 @@ impl DrumKit {
 
         // Stick click
         let stick_sample = DrumSample {
-            metadata: SampleMetadata::drum("stick", "samples/drums/acoustic/kit_01/drumkit-stick.wav", DrumType::Percussion)
-                .with_volume(0.6)
-                .with_envelope(AdsrEnvelope {
-                    attack_secs: 0.0005,
-                    decay_secs: 0.03,
-                    sustain_level: 0.0,
-                    release_secs: 0.06,
-                }),
+            metadata: SampleMetadata::drum(
+                "stick",
+                "samples/drums/acoustic/kit_01/drumkit-stick.wav",
+                DrumType::Percussion,
+            )
+            .with_volume(0.6)
+            .with_envelope(AdsrEnvelope {
+                attack_secs: 0.0005,
+                decay_secs: 0.03,
+                sustain_level: 0.0,
+                release_secs: 0.06,
+            }),
             click_type: ClickType::Stick,
             velocity_curve: VelocityCurve::Linear,
             volume: 0.6,
@@ -224,13 +250,14 @@ impl DrumKit {
         // These would use synthetic waveforms instead of samples
         // For now, we'll define the structure but note that sample paths are synthetic
         let kick_sample = DrumSample {
-            metadata: SampleMetadata::new("synth_kick", "synthetic://kick", 60.0)
-                .with_envelope(AdsrEnvelope {
+            metadata: SampleMetadata::new("synth_kick", "synthetic://kick", 60.0).with_envelope(
+                AdsrEnvelope {
                     attack_secs: 0.001,
                     decay_secs: 0.2,
                     sustain_level: 0.1,
                     release_secs: 0.4,
-                }),
+                },
+            ),
             click_type: ClickType::AcousticKick,
             velocity_curve: VelocityCurve::Exponential(2.0),
             volume: 1.0,
@@ -242,10 +269,7 @@ impl DrumKit {
 
     /// Get all available preset drum kits
     pub fn available_kits() -> Vec<DrumKit> {
-        vec![
-            Self::acoustic_kit_01(),
-            Self::synthetic_kit(),
-        ]
+        vec![Self::acoustic_kit_01(), Self::synthetic_kit()]
     }
 }
 
@@ -363,15 +387,14 @@ mod tests {
 
         // Test exponential curve
         assert_eq!(sample.apply_velocity(0.5), 0.25); // 0.5^2
-        assert_eq!(sample.apply_velocity(1.0), 1.0);  // 1.0^2
+        assert_eq!(sample.apply_velocity(1.0), 1.0); // 1.0^2
     }
 
     #[test]
     fn test_velocity_curve_linear() {
         let curve = VelocityCurve::Linear;
         let metadata = SampleMetadata::new("test", "test.wav", 440.0);
-        let sample = DrumSample::new(metadata, ClickType::AcousticKick)
-            .with_velocity_curve(curve);
+        let sample = DrumSample::new(metadata, ClickType::AcousticKick).with_velocity_curve(curve);
 
         assert_eq!(sample.apply_velocity(0.5), 0.5);
         assert_eq!(sample.apply_velocity(0.8), 0.8);

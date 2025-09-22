@@ -3,9 +3,8 @@
 /// This module provides bidirectional conversion between our internal pattern
 /// representation and the JSON catalog format, enabling external pattern
 /// management while preserving type safety.
-
 use super::types::{DrumPattern, DrumPatternBeat, PatternGenre};
-use crate::timing::{TimeSignature, ClickType};
+use crate::timing::{ClickType, TimeSignature};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -123,11 +122,14 @@ impl JsonPattern {
 
     /// Create from internal DrumPattern
     pub fn from_drum_pattern(pattern: &DrumPattern) -> Self {
-        let time_sig_str = format!("{}/{}",
-            pattern.time_signature.beats_per_measure,
-            pattern.time_signature.note_value);
+        let time_sig_str = format!(
+            "{}/{}",
+            pattern.time_signature.beats_per_measure, pattern.time_signature.note_value
+        );
 
-        let json_beats: Vec<JsonBeat> = pattern.beats.iter()
+        let json_beats: Vec<JsonBeat> = pattern
+            .beats
+            .iter()
             .map(JsonBeat::from_drum_pattern_beat)
             .collect();
 
@@ -143,13 +145,15 @@ impl JsonPattern {
         let parts: Vec<&str> = self.time_signature.split('/').collect();
         if parts.len() != 2 {
             return Err(PatternIoError::InvalidTimeSignature(
-                self.time_signature.clone()
+                self.time_signature.clone(),
             ));
         }
 
-        let beats: u8 = parts[0].parse()
+        let beats: u8 = parts[0]
+            .parse()
             .map_err(|_| PatternIoError::InvalidTimeSignature(self.time_signature.clone()))?;
-        let note_value: u8 = parts[1].parse()
+        let note_value: u8 = parts[1]
+            .parse()
             .map_err(|_| PatternIoError::InvalidTimeSignature(self.time_signature.clone()))?;
 
         Ok(TimeSignature::new(beats, note_value))
@@ -161,7 +165,10 @@ impl JsonPattern {
             PatternGenre::Rock
         } else if name_lower.contains("jazz") || name_lower.contains("swing") {
             PatternGenre::Jazz
-        } else if name_lower.contains("latin") || name_lower.contains("samba") || name_lower.contains("bossa") {
+        } else if name_lower.contains("latin")
+            || name_lower.contains("samba")
+            || name_lower.contains("bossa")
+        {
             PatternGenre::Latin
         } else if name_lower.contains("funk") {
             PatternGenre::Funk
@@ -194,7 +201,9 @@ impl JsonBeat {
 
     /// Create from internal DrumPatternBeat
     pub fn from_drum_pattern_beat(beat: &DrumPatternBeat) -> Self {
-        let sample_names: Vec<String> = beat.samples.iter()
+        let sample_names: Vec<String> = beat
+            .samples
+            .iter()
             .map(|click_type| Self::click_type_to_sample_name(*click_type))
             .collect();
 
@@ -277,8 +286,14 @@ mod tests {
 
     #[test]
     fn test_sample_name_conversion() {
-        assert_eq!(JsonBeat::parse_sample_name("kick").unwrap(), ClickType::AcousticKick);
-        assert_eq!(JsonBeat::parse_sample_name("hihat_closed").unwrap(), ClickType::HiHatClosed);
+        assert_eq!(
+            JsonBeat::parse_sample_name("kick").unwrap(),
+            ClickType::AcousticKick
+        );
+        assert_eq!(
+            JsonBeat::parse_sample_name("hihat_closed").unwrap(),
+            ClickType::HiHatClosed
+        );
         assert!(JsonBeat::parse_sample_name("invalid").is_err());
     }
 
