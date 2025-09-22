@@ -70,7 +70,7 @@ impl MetronomeState {
             time_signature: TimeSignature::new(4, 4),
             click_type: ClickType::RimShot,
             accent_first_beat: true,
-            volume: 0.5, // default volume
+            volume: 0.33, // default volume
             current_beat: 0,
             last_beat_time: None,
             pattern_state: PatternState::new(),
