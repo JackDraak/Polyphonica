@@ -70,7 +70,7 @@ impl MetronomeState {
             time_signature: TimeSignature::new(4, 4),
             click_type: ClickType::WoodBlock,
             accent_first_beat: true,
-            volume: 0.7,
+            volume: 0.5, // default volume
             current_beat: 0,
             last_beat_time: None,
             pattern_state: PatternState::new(),
@@ -369,14 +369,13 @@ mod gui_components {
             ui.horizontal(|ui| {
                 if ui.button("🔊 Test Click").clicked() {
                     let metronome = app_state.metronome.lock().unwrap();
-                    // drum_samples now accessed via metronome.audio_samples
                     let (waveform, frequency, envelope) =
                         get_legacy_sound_params(metronome.click_type, &metronome.audio_samples);
+                    let volume = metronome.volume;
                     drop(metronome);
-                    // No longer need to drop drum_samples
 
                     let mut engine = app_state.engine.lock().unwrap();
-                    engine.trigger_note(waveform, frequency, envelope);
+                    engine.trigger_note_with_volume(waveform, frequency, envelope, volume);
                 }
 
                 if ui.button("🔊 Test Accent").clicked() {
