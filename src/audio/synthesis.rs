@@ -372,34 +372,34 @@ impl LegacySampleAdapter {
                 ClickType::Stick,
                 "samples/drums/acoustic/kit_01/drumkit-stick.wav",
             ),
-            // Extended drum kit samples - map to available samples
+            // Extended drum kit samples - map to correct specific samples
             (
                 ClickType::KickTight,
-                "samples/drums/acoustic/kit_01/drumkit-kick.wav",
+                "samples/drums/acoustic/kit_01/drumkit-kick-tight.wav",
             ),
             (
                 ClickType::HiHatLoose,
-                "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav",
+                "samples/drums/acoustic/kit_01/drumkit-hihat-lose.wav",
             ),
             (
                 ClickType::HiHatVeryLoose,
-                "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav",
+                "samples/drums/acoustic/kit_01/drumkit-hihat-vlose.wav",
             ),
             (
                 ClickType::CymbalSplash,
-                "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav",
+                "samples/drums/acoustic/kit_01/drumkit-cymbol-splash.wav",
             ),
             (
                 ClickType::CymbalRoll,
-                "samples/drums/acoustic/kit_01/drumkit-hihat-open.wav",
+                "samples/drums/acoustic/kit_01/drumkit-cymball-roll.wav",
             ),
             (
                 ClickType::Ride,
-                "samples/drums/acoustic/kit_01/drumkit-hihat.wav",
+                "samples/drums/acoustic/kit_01/drumkit-ride.wav",
             ),
             (
                 ClickType::RideBell,
-                "samples/drums/acoustic/kit_01/drumkit-stick.wav",
+                "samples/drums/acoustic/kit_01/drumkit-ride-bell.wav",
             ),
         ];
 
