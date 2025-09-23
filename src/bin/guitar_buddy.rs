@@ -1,5 +1,6 @@
 use polyphonica::audio::accents::get_accent_sound;
 use polyphonica::audio::synthesis::{get_sound_params, AudioSampleAdapter};
+use polyphonica::melody::{MelodyAssistantState, Note};
 use polyphonica::patterns::{DrumPattern, MasterCollection, PatternLibrary, PatternState};
 use polyphonica::patterns::types::PatternGenre;
 use polyphonica::timing::{
@@ -62,6 +63,8 @@ struct MetronomeState {
     beat_tracker: BeatTracker,
     new_metronome: NewMetronome,
     audio_samples: AudioSampleAdapter,
+    melody_assistant: MelodyAssistantState,
+    show_chord_progressions: bool,
 }
 
 impl MetronomeState {
@@ -88,6 +91,8 @@ impl MetronomeState {
                 }
                 adapter
             },
+            melody_assistant: MelodyAssistantState::new_for_key(Note::C, true),
+            show_chord_progressions: false,
         };
         // Sync initial settings to new metronome
         instance.sync_to_new_metronome();
@@ -635,6 +640,93 @@ mod gui_components {
             });
         }
     }
+
+    /// Melody assistant panel component
+    pub struct MelodyAssistantPanel;
+
+    impl MelodyAssistantPanel {
+        pub fn show(ui: &mut Ui, app_state: &AppState) {
+            ui.collapsing("🎵 Chord Progressions", |ui| {
+                let mut metronome = app_state.metronome.lock().unwrap();
+
+                // Toggle for showing chord progressions
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut metronome.show_chord_progressions, "Enable chord progressions");
+                    if ui.button("Start/Stop").clicked() {
+                        if metronome.show_chord_progressions {
+                            if metronome.melody_assistant.is_running() {
+                                metronome.melody_assistant.stop();
+                            } else {
+                                metronome.melody_assistant.start();
+                            }
+                        }
+                    }
+                });
+
+                if metronome.show_chord_progressions {
+                    ui.separator();
+
+                    // Key selection section
+                    ui.horizontal(|ui| {
+                        ui.label("Key:");
+                        let current_key = metronome.melody_assistant.get_current_key();
+                        ui.label(format!("{}", current_key));
+                    });
+
+                    // Timeline display
+                    let timeline_data = metronome.melody_assistant.get_timeline_display();
+
+                    ui.separator();
+                    ui.label("Timeline:");
+
+                    ui.horizontal(|ui| {
+                        // Current chord
+                        if let Some(ref current_chord) = timeline_data.current_chord {
+                            ui.colored_label(Color32::GREEN, format!("Now: {}", current_chord.chord.symbol()));
+                        } else {
+                            ui.colored_label(Color32::GRAY, "Now: -");
+                        }
+
+                        ui.separator();
+
+                        // Next chord
+                        if let Some(ref next_chord) = timeline_data.next_chord {
+                            ui.colored_label(Color32::YELLOW, format!("Next: {}", next_chord.chord.symbol()));
+                        } else {
+                            ui.colored_label(Color32::GRAY, "Next: -");
+                        }
+
+                        ui.separator();
+
+                        // Following chord
+                        if let Some(ref following_chord) = timeline_data.following_chord {
+                            ui.label(format!("Following: {}", following_chord.chord.symbol()));
+                        } else {
+                            ui.label("Following: -");
+                        }
+                    });
+
+                    // Key center info
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        ui.label(format!("Key center: {}", timeline_data.current_key_center));
+                        if let Some(next_key) = timeline_data.next_key_center {
+                            ui.colored_label(Color32::YELLOW, format!("→ {}", next_key));
+                        }
+                    });
+
+                    // Simple note selection for now
+                    ui.separator();
+                    ui.label("Enabled notes:");
+
+                    let key_selection = metronome.melody_assistant.get_key_selection();
+                    let enabled_notes = key_selection.enabled_note_list();
+                    let note_names: Vec<String> = enabled_notes.iter().map(|n| n.name().to_string()).collect();
+                    ui.label(format!("{}", note_names.join(", ")));
+                }
+            });
+        }
+    }
 }
 
 use gui_components::*;
@@ -689,7 +781,12 @@ impl GuitarBuddy {
             metronome.tempo_bpm,
             metronome.time_signature,
         );
-        metronome.beat_tracker.record_beat(beat_event);
+        metronome.beat_tracker.record_beat(beat_event.clone());
+
+        // Update melody assistant with beat event if chord progressions are enabled
+        if metronome.show_chord_progressions {
+            metronome.melody_assistant.update_with_beat(&beat_event);
+        }
 
         drop(metronome);
         // No longer need to drop drum_samples
@@ -730,7 +827,12 @@ impl GuitarBuddy {
                 metronome.tempo_bpm,
                 metronome.time_signature,
             );
-            metronome.beat_tracker.record_beat(beat_event);
+            metronome.beat_tracker.record_beat(beat_event.clone());
+
+            // Update melody assistant with beat event if chord progressions are enabled
+            if metronome.show_chord_progressions {
+                metronome.melody_assistant.update_with_beat(&beat_event);
+            }
         }
 
         drop(metronome);
@@ -835,6 +937,11 @@ impl eframe::App for GuitarBuddy {
 
             // Beat visualization panel
             BeatVisualizationPanel::show(ui, &self.app_state);
+
+            ui.separator();
+
+            // Melody assistant panel
+            MelodyAssistantPanel::show(ui, &self.app_state);
 
             ui.separator();
 

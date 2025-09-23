@@ -1371,6 +1371,9 @@ pub mod visualization;
 // Configuration management subsystem for application settings
 pub mod config;
 
+// Melody assistant subsystem for chord progression generation
+pub mod melody;
+
 #[cfg(test)]
 mod tests {
     use super::*;
