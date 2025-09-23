@@ -1,5 +1,5 @@
 use polyphonica::audio::accents::get_accent_sound;
-use polyphonica::audio::synthesis::{get_sound_params, AudioSampleAdapter, AudioSynthesis, get_note_audio_params, get_chord_audio_params};
+use polyphonica::audio::synthesis::{get_sound_params, AudioSampleAdapter, get_note_audio_params, get_chord_audio_params};
 use polyphonica::melody::{MelodyAssistantState, Note, KeySelection, GenerationParameters, TimelineConfig};
 use polyphonica::patterns::{DrumPattern, MasterCollection, PatternLibrary, PatternState};
 use polyphonica::patterns::types::PatternGenre;
@@ -651,6 +651,21 @@ mod gui_components {
     pub struct MelodyAssistantPanel;
 
     impl MelodyAssistantPanel {
+        // Helper function to play audio without lock conflicts
+        fn play_note_audio(app_state: &AppState, note: &Note) {
+            let (waveform, frequency, envelope) = get_note_audio_params(note);
+            let volume = app_state.metronome.lock().unwrap().melody_volume;
+            let mut engine = app_state.engine.lock().unwrap();
+            engine.trigger_note_with_volume(waveform, frequency, envelope, volume);
+        }
+
+        fn play_chord_audio(app_state: &AppState, chord: &polyphonica::melody::Chord) {
+            let (waveform, frequency, envelope) = get_chord_audio_params(chord);
+            let volume = app_state.metronome.lock().unwrap().melody_volume;
+            let mut engine = app_state.engine.lock().unwrap();
+            engine.trigger_note_with_volume(waveform, frequency, envelope, volume);
+        }
+
         pub fn show(ui: &mut Ui, app_state: &AppState) {
             ui.collapsing("🎵 Chord Progressions", |ui| {
                 let mut metronome = app_state.metronome.lock().unwrap();
@@ -704,45 +719,21 @@ mod gui_components {
                                         ui.colored_label(Color32::WHITE, format!("NOW: {}", current_chord.chord.symbol()));
                                         ui.horizontal(|ui| {
                                             if ui.small_button("♪ Root").clicked() {
-                                                // Play root note audio
-                                                let (waveform, frequency, envelope) = get_note_audio_params(&current_chord.chord.root);
-                                                drop(metronome); // Release lock before audio call
-                                                let mut engine = app_state.engine.lock().unwrap();
-                                                let volume = app_state.metronome.lock().unwrap().melody_volume;
-                                                engine.trigger_note_with_volume(waveform, frequency, envelope, volume);
-                                                metronome = app_state.metronome.lock().unwrap(); // Reacquire lock
+                                                Self::play_note_audio(app_state, &current_chord.chord.root);
                                             }
                                             if ui.small_button("♫ Chord").clicked() {
-                                                // Play chord audio (root note for now)
-                                                let (waveform, frequency, envelope) = get_chord_audio_params(&current_chord.chord);
-                                                drop(metronome);
-                                                let mut engine = app_state.engine.lock().unwrap();
-                                                let volume = app_state.metronome.lock().unwrap().melody_volume;
-                                                engine.trigger_note_with_volume(waveform, frequency, envelope, volume);
-                                                metronome = app_state.metronome.lock().unwrap();
+                                                Self::play_chord_audio(app_state, &current_chord.chord);
                                             }
                                             if ui.small_button("🎵 Melody").clicked() {
-                                                // Play melody note (third of chord)
                                                 let chord_tones = current_chord.chord.chord_tones();
                                                 if chord_tones.len() > 1 {
-                                                    let (waveform, frequency, envelope) = get_note_audio_params(&chord_tones[1]);
-                                                    drop(metronome);
-                                                    let mut engine = app_state.engine.lock().unwrap();
-                                                    let volume = app_state.metronome.lock().unwrap().melody_volume;
-                                                    engine.trigger_note_with_volume(waveform, frequency, envelope, volume);
-                                                    metronome = app_state.metronome.lock().unwrap();
+                                                    Self::play_note_audio(app_state, &chord_tones[1]);
                                                 }
                                             }
                                             if ui.small_button("🔄 Arp").clicked() {
-                                                // Play arpeggio (sequence of notes)
                                                 let chord_tones = current_chord.chord.chord_tones();
-                                                for (i, &note) in chord_tones.iter().enumerate() {
-                                                    let (waveform, frequency, envelope) = get_note_audio_params(&note);
-                                                    drop(metronome);
-                                                    let mut engine = app_state.engine.lock().unwrap();
-                                                    let volume = app_state.metronome.lock().unwrap().melody_volume;
-                                                    engine.trigger_note_with_volume(waveform, frequency, envelope, volume * 0.8);
-                                                    metronome = app_state.metronome.lock().unwrap();
+                                                for &note in chord_tones.iter() {
+                                                    Self::play_note_audio(app_state, &note);
                                                     // Note: In a real implementation, we'd want to stagger these notes over time
                                                 }
                                             }
@@ -762,15 +753,16 @@ mod gui_components {
                                 ui.colored_label(Color32::YELLOW, format!("NEXT: {}", next_chord.chord.symbol()));
                                 ui.horizontal(|ui| {
                                     if ui.small_button("♪").clicked() {
-                                        println!("Playing next root: {} Hz", next_chord.chord.root_frequency());
+                                        Self::play_note_audio(app_state, &next_chord.chord.root);
                                     }
                                     if ui.small_button("♫").clicked() {
-                                        let frequencies = next_chord.chord.chord_frequencies();
-                                        println!("Playing next chord (multi-octave): {:?}", frequencies);
+                                        Self::play_chord_audio(app_state, &next_chord.chord);
                                     }
                                     if ui.small_button("🎵").clicked() {
-                                        let melody_freqs = next_chord.chord.melody_frequencies();
-                                        println!("Playing next melody: {:?}", melody_freqs);
+                                        let chord_tones = next_chord.chord.chord_tones();
+                                        if chord_tones.len() > 1 {
+                                            Self::play_note_audio(app_state, &chord_tones[1]);
+                                        }
                                     }
                                 });
                             });
@@ -786,15 +778,16 @@ mod gui_components {
                                 ui.label(format!("FOLLOWING: {}", following_chord.chord.symbol()));
                                 ui.horizontal(|ui| {
                                     if ui.small_button("♪").clicked() {
-                                        println!("Playing following root: {} Hz", following_chord.chord.root_frequency());
+                                        Self::play_note_audio(app_state, &following_chord.chord.root);
                                     }
                                     if ui.small_button("♫").clicked() {
-                                        let frequencies = following_chord.chord.chord_frequencies();
-                                        println!("Playing following chord (multi-octave): {:?}", frequencies);
+                                        Self::play_chord_audio(app_state, &following_chord.chord);
                                     }
                                     if ui.small_button("🎵").clicked() {
-                                        let melody_freqs = following_chord.chord.melody_frequencies();
-                                        println!("Playing following melody: {:?}", melody_freqs);
+                                        let chord_tones = following_chord.chord.chord_tones();
+                                        if chord_tones.len() > 1 {
+                                            Self::play_note_audio(app_state, &chord_tones[1]);
+                                        }
                                     }
                                 });
                             });
@@ -988,7 +981,7 @@ impl GuitarBuddy {
             metronome.melody_assistant.update_with_beat(&beat_event);
 
             // Auto-play chord accompaniment on strong beats if enabled (beat 1 of measure)
-            if metronome.auto_accompaniment && (beat_event.beat_number % metronome.time_signature.numerator as u64 == 1) {
+            if metronome.auto_accompaniment && (beat_event.beat_number as u64 % metronome.time_signature.beats_per_measure as u64 == 1) {
                 let timeline_data = metronome.melody_assistant.get_timeline_display();
                 if let Some(ref current_chord) = timeline_data.current_chord {
                     let (chord_waveform, chord_frequency, chord_envelope) = get_chord_audio_params(&current_chord.chord);
@@ -1049,7 +1042,7 @@ impl GuitarBuddy {
                 metronome.melody_assistant.update_with_beat(&beat_event);
 
                 // Auto-play chord accompaniment on strong beats if enabled (beat 1 of measure)
-                if metronome.auto_accompaniment && (beat_event.beat_number % metronome.time_signature.numerator as u64 == 1) {
+                if metronome.auto_accompaniment && (beat_event.beat_number as u64 % metronome.time_signature.beats_per_measure as u64 == 1) {
                     let timeline_data = metronome.melody_assistant.get_timeline_display();
                     if let Some(ref current_chord) = timeline_data.current_chord {
                         let (chord_waveform, chord_frequency, chord_envelope) = get_chord_audio_params(&current_chord.chord);

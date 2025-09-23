@@ -1,6 +1,6 @@
 [package]
 name = "polyphonica"
-version = "0.2.8"
+version = "0.2.9"
 edition = "2021"
 authors = ["JackDraak with Claude and other LLM tools"]
 description = "Comprehensive Rust library for real-time audio synthesis with polyphonic mixing, sample-based synthesis, and CLI test tools"
