@@ -477,17 +477,21 @@ mod tests {
         assert!(context.is_strong_beat());
 
         context.advance_beat();
-        assert_eq!(context.measure_position, 2);
+        assert_eq!(context.measure_position, 1); // current_beat=1, ((1-1)%4)+1 = 1
+        assert!(context.is_strong_beat());
+
+        context.advance_beat();
+        assert_eq!(context.measure_position, 2); // current_beat=2, ((2-1)%4)+1 = 2
         assert!(!context.is_strong_beat());
 
         context.advance_beat();
-        assert_eq!(context.measure_position, 3);
+        assert_eq!(context.measure_position, 3); // current_beat=3, ((3-1)%4)+1 = 3
         assert!(context.is_strong_beat());
     }
 
     #[test]
     fn test_chord_generation() {
-        let mut generator = MarkovChordGenerator::new();
+        let mut generator = MarkovChordGenerator::new_default();
         let key_selection = KeySelection::for_major_key(Note::C);
         let context = GenerationContext::new(TimeSignature::new(4, 4), 120.0);
 
@@ -502,7 +506,7 @@ mod tests {
 
     #[test]
     fn test_progression_training() {
-        let mut generator = MarkovChordGenerator::new();
+        let mut generator = MarkovChordGenerator::new_default();
 
         // Train on I-V-vi-IV progression in C
         let progression = vec![
@@ -521,7 +525,7 @@ mod tests {
 
     #[test]
     fn test_parameters() {
-        let mut generator = MarkovChordGenerator::new();
+        let mut generator = MarkovChordGenerator::new_default();
 
         let mut params = GenerationParameters::default();
         params.theory_adherence = 0.5;

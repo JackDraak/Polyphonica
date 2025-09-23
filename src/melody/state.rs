@@ -438,9 +438,10 @@ mod tests {
 
         let beat_event = BeatEvent::new(
             1,
+            false,
+            vec![crate::timing::ClickType::WoodBlock],
             120.0,
             TimeSignature::new(4, 4),
-            crate::timing::ClickType::WoodBlock,
         );
 
         // Should not panic
