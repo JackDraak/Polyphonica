@@ -34,8 +34,8 @@
 /// format, containing all patterns from the code-based library with proper
 /// metadata and version information.
 use polyphonica::patterns::{
-    ElectronicPatterns, FunkPatterns, JazzPatterns, LatinPatterns, PatternCatalog, PatternLibrary,
-    PopPatterns, RockPatterns,
+    BluesPatterns, ClassicalPatterns, ElectronicPatterns, FunkPatterns, JazzPatterns, LatinPatterns,
+    PatternCatalog, PatternLibrary, PopPatterns, RockPatterns, WorldPatterns,
 };
 use std::env;
 use std::fs;
@@ -65,6 +65,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     all_patterns.extend(FunkPatterns::all());
     all_patterns.extend(PopPatterns::all());
     all_patterns.extend(ElectronicPatterns::all());
+    all_patterns.extend(BluesPatterns::all());
+    all_patterns.extend(WorldPatterns::all());
+    all_patterns.extend(ClassicalPatterns::all());
 
     println!("Found {} patterns in code library:", all_patterns.len());
     for pattern in &all_patterns {

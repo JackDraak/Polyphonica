@@ -1,4 +1,4 @@
-use crate::audio::synthesis::{AudioSynthesis, LegacySampleAdapter};
+use crate::audio::synthesis::{AudioSynthesis, AudioSampleAdapter};
 use crate::timing::ClickType;
 /// Accent sound generation for metronomes and rhythm emphasis
 ///
@@ -25,7 +25,7 @@ impl AccentSoundGenerator {
     /// - For synthetic sounds: Use different waveform with higher pitch
     pub fn get_accent_sound(
         click_type: ClickType,
-        sample_adapter: &LegacySampleAdapter,
+        sample_adapter: &AudioSampleAdapter,
     ) -> (Waveform, f32, AdsrEnvelope) {
         match click_type {
             // For drum samples, use contrasting drum for accent
@@ -41,11 +41,11 @@ impl AccentSoundGenerator {
             | ClickType::Ride
             | ClickType::RideBell => {
                 // Use kick drum for accent
-                ClickType::AcousticKick.get_legacy_audio_params(sample_adapter)
+                ClickType::AcousticKick.get_audio_params(sample_adapter)
             }
             // For kick drum variants, use snare for accent
             ClickType::AcousticKick | ClickType::KickTight => {
-                ClickType::AcousticSnare.get_legacy_audio_params(sample_adapter)
+                ClickType::AcousticSnare.get_audio_params(sample_adapter)
             }
             // For synthetic sounds, create contrasting synthetic accent
             ClickType::WoodBlock => Self::get_synthetic_accent_for_woodblock(),
@@ -151,32 +151,15 @@ pub enum AccentContext {
     Performance,
 }
 
-/// Legacy compatibility for transitioning guitar_buddy.rs
+/// Get accent sound parameters for a click type
 ///
-/// This provides the same interface as the old get_accent_sound method
-/// to ease the transition to the modular audio system.
-pub fn get_legacy_accent_sound(
+/// Returns audio parameters for accent beats, typically with enhanced volume
+/// and brightness to emphasize the beat.
+pub fn get_accent_sound(
     click_type: ClickType,
-    sample_adapter: &LegacySampleAdapter,
+    sample_adapter: &AudioSampleAdapter,
 ) -> (Waveform, f32, AdsrEnvelope) {
     AccentSoundGenerator::get_accent_sound(click_type, sample_adapter)
-}
-
-/// Legacy implementation of AccentSampleProvider for DrumSampleManager transition
-pub struct LegacyAccentAdapter<'a> {
-    samples: &'a std::collections::HashMap<ClickType, SampleData>,
-}
-
-impl<'a> LegacyAccentAdapter<'a> {
-    pub fn new(samples: &'a std::collections::HashMap<ClickType, SampleData>) -> Self {
-        Self { samples }
-    }
-}
-
-impl<'a> AccentSampleProvider for LegacyAccentAdapter<'a> {
-    fn get_sample(&self, click_type: &ClickType) -> Option<&SampleData> {
-        self.samples.get(click_type)
-    }
 }
 
 /// Implementation for the new modular SampleManager
@@ -184,13 +167,13 @@ impl<'a> AccentSampleProvider for LegacyAccentAdapter<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::audio::synthesis::LegacySampleAdapter;
+    use crate::audio::synthesis::AudioSampleAdapter;
     use std::collections::HashMap;
 
     #[test]
     fn test_accent_generation_for_drum_samples() {
         let samples: HashMap<ClickType, SampleData> = HashMap::new();
-        let adapter = LegacySampleAdapter::new();
+        let adapter = AudioSampleAdapter::new();
 
         // Test that snare gets kick accent
         let (waveform, freq, envelope) =
@@ -203,7 +186,7 @@ mod tests {
     #[test]
     fn test_accent_generation_for_synthetic_sounds() {
         let samples: HashMap<ClickType, SampleData> = HashMap::new();
-        let adapter = LegacySampleAdapter::new();
+        let adapter = AudioSampleAdapter::new();
 
         // Test wood block accent
         let (waveform, freq, envelope) =

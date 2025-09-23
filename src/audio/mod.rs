@@ -21,7 +21,7 @@ pub mod stream;
 /// # Usage Example
 ///
 /// ```rust
-/// use polyphonica::audio::synthesis::{AudioSynthesis, LegacySampleAdapter, get_legacy_sound_params};
+/// use polyphonica::audio::synthesis::{AudioSynthesis, AudioSampleAdapter, get_sound_params};
 /// use polyphonica::audio::stream::AudioStream;
 /// use polyphonica::timing::ClickType;
 /// use std::sync::{Arc, Mutex};
@@ -29,10 +29,10 @@ pub mod stream;
 ///
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // Create sample adapter for audio parameter generation
-/// let adapter = LegacySampleAdapter::new();
+/// let adapter = AudioSampleAdapter::new();
 ///
 /// // Get audio parameters for a click type
-/// let (waveform, frequency, envelope) = get_legacy_sound_params(ClickType::WoodBlock, &adapter);
+/// let (waveform, frequency, envelope) = get_sound_params(ClickType::WoodBlock, &adapter);
 ///
 /// // Create app state for audio stream
 /// let engine = Arc::new(Mutex::new(polyphonica::RealtimeEngine::new(44100.0)));

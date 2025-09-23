@@ -1,6 +1,7 @@
-use polyphonica::audio::accents::get_legacy_accent_sound;
-use polyphonica::audio::synthesis::{get_legacy_sound_params, LegacySampleAdapter};
-use polyphonica::patterns::{DrumPattern, PatternLibrary, PatternState};
+use polyphonica::audio::accents::get_accent_sound;
+use polyphonica::audio::synthesis::{get_sound_params, AudioSampleAdapter};
+use polyphonica::patterns::{DrumPattern, MasterCollection, PatternLibrary, PatternState};
+use polyphonica::patterns::types::PatternGenre;
 use polyphonica::timing::{
     BeatClock, BeatEvent, BeatTracker, ClickType, Metronome as NewMetronome, TimeSignature,
 };
@@ -57,9 +58,10 @@ struct MetronomeState {
     pattern_state: PatternState,
     pattern_mode: bool, // true = pattern mode, false = metronome mode
     pattern_library: PatternLibrary,
+    selected_genre: Option<PatternGenre>, // Genre filter for pattern selection
     beat_tracker: BeatTracker,
     new_metronome: NewMetronome,
-    audio_samples: LegacySampleAdapter,
+    audio_samples: AudioSampleAdapter,
 }
 
 impl MetronomeState {
@@ -76,10 +78,11 @@ impl MetronomeState {
             pattern_state: PatternState::new(),
             pattern_mode: false,
             pattern_library: PatternLibrary::with_defaults(),
+            selected_genre: None, // Show all genres by default
             beat_tracker: BeatTracker::new(),
             new_metronome: NewMetronome::new(TimeSignature::new(4, 4)),
             audio_samples: {
-                let mut adapter = LegacySampleAdapter::new();
+                let mut adapter = AudioSampleAdapter::new();
                 if let Err(e) = adapter.load_drum_samples() {
                     println!("⚠️  Error loading drum samples: {}", e);
                 }
@@ -370,7 +373,7 @@ mod gui_components {
                 if ui.button("🔊 Test Click").clicked() {
                     let metronome = app_state.metronome.lock().unwrap();
                     let (waveform, frequency, envelope) =
-                        get_legacy_sound_params(metronome.click_type, &metronome.audio_samples);
+                        get_sound_params(metronome.click_type, &metronome.audio_samples);
                     let volume = metronome.volume;
                     drop(metronome);
 
@@ -424,43 +427,105 @@ mod gui_components {
 
                 if metronome.pattern_mode {
                     ui.separator();
-                    ui.label("Available Patterns:");
+                    ui.label("Pattern Selection:");
 
-                    let mut current_pattern_name = metronome
+                    // Genre filter dropdown
+                    ui.horizontal(|ui| {
+                        ui.label("Genre Filter:");
+                        let current_genre_text = metronome
+                            .selected_genre
+                            .as_ref()
+                            .map(|g| g.display_name())
+                            .unwrap_or("All Genres");
+
+                        egui::ComboBox::from_label("")
+                            .selected_text(current_genre_text)
+                            .width(120.0)
+                            .show_ui(ui, |ui| {
+                                if ui
+                                    .selectable_value(&mut metronome.selected_genre, None, "All Genres")
+                                    .clicked()
+                                {}
+
+                                for genre in PatternGenre::all() {
+                                    if ui
+                                        .selectable_value(
+                                            &mut metronome.selected_genre,
+                                            Some(genre.clone()),
+                                            genre.display_name(),
+                                        )
+                                        .clicked()
+                                    {}
+                                }
+                            });
+                    });
+
+                    // Get patterns based on genre filter
+                    let mut available_patterns: Vec<_> = if let Some(ref genre) = metronome.selected_genre {
+                        MasterCollection::by_genre(genre)
+                    } else {
+                        MasterCollection::all()
+                    };
+                    // Sort patterns alphabetically by display name
+                    available_patterns.sort_by(|a, b| a.display_name.cmp(&b.display_name));
+
+                    let current_pattern_name = metronome
                         .pattern_state
                         .current_pattern()
-                        .map(|p| p.name.clone())
-                        .unwrap_or_else(|| "None".to_string());
+                        .map(|p| p.display_name.clone())
+                        .unwrap_or_else(|| "Select Pattern".to_string());
 
-                    let available_patterns: Vec<_> = metronome
-                        .pattern_library
-                        .all_patterns()
-                        .into_iter()
-                        .cloned()
-                        .collect();
-                    for pattern in available_patterns {
-                        if ui
-                            .radio_value(
-                                &mut current_pattern_name,
-                                pattern.name.clone(),
-                                &pattern.name,
-                            )
-                            .clicked()
-                        {
-                            metronome.set_pattern(pattern);
-                        }
-                    }
+                    let mut selected_display_name = current_pattern_name.clone();
+
+                    egui::ComboBox::from_label("")
+                        .selected_text(&current_pattern_name)
+                        .width(200.0)
+                        .height(120.0) // Show approximately 5 patterns at once
+                        .show_ui(ui, |ui| {
+                            for pattern in &available_patterns {
+                                if ui
+                                    .selectable_value(
+                                        &mut selected_display_name,
+                                        pattern.display_name.clone(),
+                                        &pattern.display_name,
+                                    )
+                                    .clicked()
+                                {
+                                    metronome.set_pattern(pattern.clone());
+                                }
+                            }
+                        });
 
                     ui.separator();
                     if let Some(pattern) = metronome.pattern_state.current_pattern() {
-                        ui.label(format!(
-                            "Time: {}",
-                            Self::format_time_signature(&pattern.time_signature)
-                        ));
-                        ui.label(format!(
-                            "Tempo Range: {}-{} BPM",
-                            pattern.tempo_range.0, pattern.tempo_range.1
-                        ));
+                        ui.horizontal(|ui| {
+                            ui.label("Pattern Info:");
+                            ui.separator();
+                            ui.label(format!(
+                                "Time: {}",
+                                Self::format_time_signature(&pattern.time_signature)
+                            ));
+                            ui.separator();
+                            ui.label(format!(
+                                "Tempo: {}-{} BPM",
+                                pattern.tempo_range.0, pattern.tempo_range.1
+                            ));
+                            ui.separator();
+                            ui.label(format!("Difficulty: {}/5", pattern.metadata.difficulty));
+                        });
+
+                        if !pattern.metadata.description.is_empty() {
+                            ui.label(format!("Description: {}", pattern.metadata.description));
+                        }
+
+                        if !pattern.metadata.tags.is_empty() {
+                            ui.horizontal(|ui| {
+                                ui.label("Tags:");
+                                for tag in &pattern.metadata.tags {
+                                    ui.small(format!("#{}", tag));
+                                }
+                            });
+                        }
 
                         // Show current pattern position if playing
                         if metronome.pattern_state.is_playing() {
@@ -607,10 +672,10 @@ impl GuitarBuddy {
         // Use different sound for accents to make them clearly distinct
         let (waveform, frequency, envelope) = if is_accent && metronome.accent_first_beat {
             // For accents, use a more prominent sound
-            get_legacy_accent_sound(metronome.click_type, &metronome.audio_samples)
+            get_accent_sound(metronome.click_type, &metronome.audio_samples)
         } else {
             // Regular click
-            get_legacy_sound_params(metronome.click_type, &metronome.audio_samples)
+            get_sound_params(metronome.click_type, &metronome.audio_samples)
         };
 
         let volume = metronome.volume;
@@ -646,7 +711,7 @@ impl GuitarBuddy {
         // drum_samples now accessed via metronome.audio_samples
 
         let (waveform, frequency, envelope) =
-            get_legacy_sound_params(click_type, &metronome.audio_samples);
+            get_sound_params(click_type, &metronome.audio_samples);
 
         // Pattern accents need volume boost since they use same samples, unlike metronome which uses different sounds
         let volume = if is_accent {

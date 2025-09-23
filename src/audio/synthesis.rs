@@ -16,9 +16,9 @@ pub trait AudioSynthesis {
     ///
     /// Returns (waveform, frequency, envelope) tuple suitable for real-time synthesis.
     /// Automatically chooses between sample-based and synthetic sounds based on availability.
-    fn get_legacy_audio_params(
+    fn get_audio_params(
         &self,
-        sample_adapter: &LegacySampleAdapter,
+        sample_adapter: &AudioSampleAdapter,
     ) -> (Waveform, f32, AdsrEnvelope);
 
     /// Get ADSR envelope parameters for sample-based sounds
@@ -35,10 +35,10 @@ pub trait AudioSynthesis {
 }
 
 impl AudioSynthesis for ClickType {
-    /// Generate the waveform and parameters for this click type (legacy compatibility)
-    fn get_legacy_audio_params(
+    /// Generate the waveform and parameters for this click type
+    fn get_audio_params(
         &self,
-        sample_adapter: &LegacySampleAdapter,
+        sample_adapter: &AudioSampleAdapter,
     ) -> (Waveform, f32, AdsrEnvelope) {
         // Check if we have a sample for this click type
         if let Some(sample_data) = sample_adapter.get_sample(self) {
@@ -325,20 +325,21 @@ impl AudioSynthesis for ClickType {
     }
 }
 
-/// Legacy compatibility wrapper for DrumSampleManager
+/// Audio sample adapter for ClickType sound generation
 ///
-/// Provides compatibility with legacy systems while using the modular SampleManager system.
-pub struct LegacySampleAdapter {
+/// Provides a convenient interface for loading and accessing drum samples
+/// for use with the AudioSynthesis trait and sound generation.
+pub struct AudioSampleAdapter {
     samples: HashMap<ClickType, SampleData>,
 }
 
-impl Default for LegacySampleAdapter {
+impl Default for AudioSampleAdapter {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl LegacySampleAdapter {
+impl AudioSampleAdapter {
     pub fn new() -> Self {
         Self {
             samples: HashMap::new(),
@@ -427,13 +428,13 @@ impl LegacySampleAdapter {
     }
 }
 
-/// Legacy audio parameters function for transitioning guitar_buddy.rs
+/// Get audio parameters for a click type with sample adapter
 ///
-/// This provides the same interface as the old ClickTypeAudioExt::get_sound_params
-/// method to ease the transition to the modular audio system.
-pub fn get_legacy_sound_params(
+/// This is a convenience function that provides a simple interface for generating
+/// audio parameters for any ClickType, automatically choosing between samples and synthesis.
+pub fn get_sound_params(
     click_type: ClickType,
-    sample_adapter: &LegacySampleAdapter,
+    sample_adapter: &AudioSampleAdapter,
 ) -> (Waveform, f32, AdsrEnvelope) {
-    click_type.get_legacy_audio_params(sample_adapter)
+    click_type.get_audio_params(sample_adapter)
 }

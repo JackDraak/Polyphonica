@@ -619,6 +619,238 @@ impl ElectronicPatterns {
     }
 }
 
+/// Blues Patterns - Traditional blues rhythm patterns
+pub struct BluesPatterns;
+
+impl BluesPatterns {
+    /// Classic 12-bar blues shuffle pattern
+    pub fn shuffle_blues() -> DrumPattern {
+        PatternBuilder::new("shuffle_blues", TimeSignature::new(4, 4))
+            .display_name("Blues Shuffle")
+            .tempo_range(80, 120)
+            .genre(PatternGenre::Blues)
+            .difficulty(2)
+            .description("Classic 12-bar blues shuffle rhythm")
+            .tag("blues")
+            .tag("shuffle")
+            .tag("traditional")
+            .beat(1.0)
+            .kick()
+            .accent()
+            .build()
+            .beat(1.667) // Shuffle timing (triplet feel)
+            .hihat_closed()
+            .build()
+            .beat(2.0)
+            .snare()
+            .build()
+            .beat(2.667)
+            .hihat_closed()
+            .build()
+            .beat(3.0)
+            .kick()
+            .build()
+            .beat(3.667)
+            .hihat_closed()
+            .build()
+            .beat(4.0)
+            .snare()
+            .build()
+            .beat(4.667)
+            .hihat_closed()
+            .build()
+            .build()
+            .unwrap()
+    }
+
+    /// Slow blues ballad pattern
+    pub fn slow_blues() -> DrumPattern {
+        PatternBuilder::new("slow_blues", TimeSignature::new(4, 4))
+            .display_name("Slow Blues")
+            .tempo_range(60, 90)
+            .genre(PatternGenre::Blues)
+            .difficulty(1)
+            .description("Slow blues ballad with simple kick-snare pattern")
+            .tag("blues")
+            .tag("ballad")
+            .tag("simple")
+            .beat(1.0)
+            .kick()
+            .accent()
+            .build()
+            .beat(2.0)
+            .snare()
+            .build()
+            .beat(3.0)
+            .kick()
+            .build()
+            .beat(4.0)
+            .snare()
+            .build()
+            .build()
+            .unwrap()
+    }
+
+    /// Get all blues patterns
+    pub fn all() -> Vec<DrumPattern> {
+        vec![Self::shuffle_blues(), Self::slow_blues()]
+    }
+}
+
+/// World Music Patterns - Traditional rhythms from around the world
+pub struct WorldPatterns;
+
+impl WorldPatterns {
+    /// African djembe-inspired pattern
+    pub fn african_djembe() -> DrumPattern {
+        PatternBuilder::new("african_djembe", TimeSignature::new(4, 4))
+            .display_name("African Djembe")
+            .tempo_range(110, 140)
+            .genre(PatternGenre::World)
+            .difficulty(3)
+            .description("Traditional African djembe rhythm pattern")
+            .tag("world")
+            .tag("african")
+            .tag("djembe")
+            .beat(1.0)
+            .kick()
+            .accent()
+            .build()
+            .beat(1.5)
+            .rimshot()
+            .build()
+            .beat(2.0)
+            .snare()
+            .build()
+            .beat(2.5)
+            .kick()
+            .build()
+            .beat(3.0)
+            .rimshot()
+            .build()
+            .beat(3.5)
+            .snare()
+            .build()
+            .beat(4.0)
+            .kick()
+            .build()
+            .beat(4.5)
+            .rimshot()
+            .build()
+            .build()
+            .unwrap()
+    }
+
+    /// Celtic folk pattern
+    pub fn celtic_reel() -> DrumPattern {
+        PatternBuilder::new("celtic_reel", TimeSignature::new(4, 4))
+            .display_name("Celtic Reel")
+            .tempo_range(120, 160)
+            .genre(PatternGenre::World)
+            .difficulty(2)
+            .description("Traditional Celtic reel rhythm")
+            .tag("world")
+            .tag("celtic")
+            .tag("folk")
+            .beat(1.0)
+            .kick()
+            .accent()
+            .build()
+            .beat(1.5)
+            .hihat_closed()
+            .build()
+            .beat(2.0)
+            .snare()
+            .build()
+            .beat(2.5)
+            .hihat_closed()
+            .build()
+            .beat(3.0)
+            .kick()
+            .build()
+            .beat(3.5)
+            .hihat_closed()
+            .build()
+            .beat(4.0)
+            .snare()
+            .build()
+            .beat(4.5)
+            .hihat_closed()
+            .build()
+            .build()
+            .unwrap()
+    }
+
+    /// Get all world music patterns
+    pub fn all() -> Vec<DrumPattern> {
+        vec![Self::african_djembe(), Self::celtic_reel()]
+    }
+}
+
+/// Classical Patterns - Classical music percussion patterns
+pub struct ClassicalPatterns;
+
+impl ClassicalPatterns {
+    /// March pattern typical in classical/orchestral music
+    pub fn orchestral_march() -> DrumPattern {
+        PatternBuilder::new("orchestral_march", TimeSignature::new(4, 4))
+            .display_name("Orchestral March")
+            .tempo_range(100, 130)
+            .genre(PatternGenre::Classical)
+            .difficulty(2)
+            .description("Classic orchestral march pattern")
+            .tag("classical")
+            .tag("march")
+            .tag("orchestral")
+            .beat(1.0)
+            .kick()
+            .accent()
+            .build()
+            .beat(2.0)
+            .kick()
+            .build()
+            .beat(3.0)
+            .kick()
+            .accent()
+            .build()
+            .beat(4.0)
+            .kick()
+            .build()
+            .build()
+            .unwrap()
+    }
+
+    /// Waltz pattern in 3/4 time
+    pub fn classical_waltz() -> DrumPattern {
+        PatternBuilder::new("classical_waltz", TimeSignature::new(3, 4))
+            .display_name("Classical Waltz")
+            .tempo_range(120, 180)
+            .genre(PatternGenre::Classical)
+            .difficulty(1)
+            .description("Traditional waltz pattern in 3/4 time")
+            .tag("classical")
+            .tag("waltz")
+            .tag("triple")
+            .beat(1.0)
+            .kick()
+            .accent()
+            .build()
+            .beat(2.0)
+            .snare()
+            .build()
+            .beat(3.0)
+            .snare()
+            .build()
+            .build()
+            .unwrap()
+    }
+
+    /// Get all classical patterns
+    pub fn all() -> Vec<DrumPattern> {
+        vec![Self::orchestral_march(), Self::classical_waltz()]
+    }
+}
+
 /// Master pattern collection containing all genre patterns
 pub struct MasterCollection;
 
@@ -632,6 +864,9 @@ impl MasterCollection {
         patterns.extend(FunkPatterns::all());
         patterns.extend(PopPatterns::all());
         patterns.extend(ElectronicPatterns::all());
+        patterns.extend(BluesPatterns::all());
+        patterns.extend(WorldPatterns::all());
+        patterns.extend(ClassicalPatterns::all());
         patterns
     }
 
@@ -644,7 +879,10 @@ impl MasterCollection {
             PatternGenre::Funk => FunkPatterns::all(),
             PatternGenre::Pop => PopPatterns::all(),
             PatternGenre::Electronic => ElectronicPatterns::all(),
-            _ => vec![], // Other genres not implemented yet
+            PatternGenre::Blues => BluesPatterns::all(),
+            PatternGenre::World => WorldPatterns::all(),
+            PatternGenre::Classical => ClassicalPatterns::all(),
+            _ => vec![], // Experimental, Custom not implemented yet
         }
     }
 
