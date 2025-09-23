@@ -1,4 +1,6 @@
+/// Audio accent management for dynamic rhythm emphasis.
 pub mod accents;
+/// CPAL integration and audio stream management for real-time output.
 pub mod stream;
 /// Audio Processing Module for Polyphonica
 ///

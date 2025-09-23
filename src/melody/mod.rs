@@ -40,11 +40,17 @@
 //! println!("Current chord: {:?}", timeline.current_chord);
 //! ```
 
+/// Configuration management for melody assistant settings and presets.
 pub mod config;
+/// Intelligent chord progression generation using Markov chains and music theory.
 pub mod generator;
+/// Real-time melody assistant state management with timeline integration.
 pub mod state;
+/// Music theory fundamentals including scales, chord functions, and voice leading.
 pub mod theory;
+/// Moving timeline display for current/next/following chord progression visualization.
 pub mod timeline;
+/// Core types for chords, notes, and musical structures.
 pub mod types;
 
 // Re-export main types for convenient access

@@ -1,6 +1,10 @@
+/// High-precision beat timing abstraction with discrete scheduling.
 pub mod clock;
+/// Simple metronome implementation using BeatClock for regular beats.
 pub mod metronome;
+/// Pattern player for complex rhythm sequences with BeatClock integration.
 pub mod patterns;
+/// Beat event tracking and observation for audio-visual coupling.
 pub mod tracker;
 /// Timing subsystem for Polyphonica - Precision timing for musical applications
 ///

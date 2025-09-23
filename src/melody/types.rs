@@ -9,7 +9,30 @@ use std::fmt;
 /// Musical note representation (chromatic scale)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Note {
-    C, CSharp, D, DSharp, E, F, FSharp, G, GSharp, A, ASharp, B
+    /// The note C
+    C,
+    /// The note C# (C sharp)
+    CSharp,
+    /// The note D
+    D,
+    /// The note D# (D sharp)
+    DSharp,
+    /// The note E
+    E,
+    /// The note F
+    F,
+    /// The note F# (F sharp)
+    FSharp,
+    /// The note G
+    G,
+    /// The note G# (G sharp)
+    GSharp,
+    /// The note A
+    A,
+    /// The note A# (A sharp)
+    ASharp,
+    /// The note B
+    B,
 }
 
 impl Note {
@@ -94,15 +117,25 @@ impl fmt::Display for Note {
 /// Quality of a chord (major, minor, etc.)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ChordQuality {
+    /// Major triad (1-3-5)
     Major,
+    /// Minor triad (1-♭3-5)
     Minor,
+    /// Diminished triad (1-♭3-♭5)
     Diminished,
+    /// Augmented triad (1-3-♯5)
     Augmented,
+    /// Major seventh chord (1-3-5-7)
     Major7,
+    /// Minor seventh chord (1-♭3-5-♭7)
     Minor7,
+    /// Dominant seventh chord (1-3-5-♭7)
     Dominant7,
+    /// Suspended second chord (1-2-5)
     Sus2,
+    /// Suspended fourth chord (1-4-5)
     Sus4,
+    /// Minor-major seventh chord (1-♭3-5-7)
     MinorMajor7,
 }
 
@@ -160,9 +193,12 @@ impl fmt::Display for ChordQuality {
 /// Complete chord representation
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Chord {
+    /// Root note of the chord
     pub root: Note,
+    /// Quality/type of the chord (major, minor, etc.)
     pub quality: ChordQuality,
-    pub inversion: u8, // 0 = root position, 1 = first inversion, etc.
+    /// Inversion of the chord (0 = root position, 1 = first inversion, etc.)
+    pub inversion: u8,
 }
 
 impl Chord {
@@ -240,10 +276,15 @@ impl fmt::Display for Chord {
 /// Chord event with timing information
 #[derive(Debug, Clone)]
 pub struct ChordEvent {
+    /// The chord to be played
     pub chord: Chord,
+    /// Beat position when this chord starts
     pub beat_position: u32,
+    /// Duration of this chord in beats
     pub duration_beats: u32,
+    /// Key center for harmonic context
     pub key_center: Note,
+    /// Whether this chord should be accented
     pub accent: bool,
 }
 
@@ -276,6 +317,12 @@ impl ChordEvent {
     }
 
     /// Check if chord is active at given beat
+    ///
+    /// # Arguments
+    /// * `beat` - Beat number to check
+    ///
+    /// # Returns
+    /// `true` if the chord is playing during the specified beat
     pub fn is_active_at_beat(&self, beat: u32) -> bool {
         beat >= self.beat_position && beat < self.end_beat()
     }
@@ -284,8 +331,10 @@ impl ChordEvent {
 /// Key signature with selected notes
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeySelection {
-    pub enabled_notes: [bool; 12], // One for each chromatic note
-    pub primary_key: Option<Note>,  // Suggested primary key center
+    /// Array indicating which of the 12 chromatic notes are enabled
+    pub enabled_notes: [bool; 12],
+    /// Suggested primary key center for harmonic context
+    pub primary_key: Option<Note>,
 }
 
 impl KeySelection {
@@ -380,10 +429,14 @@ impl Default for KeySelection {
 /// Timeline window configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimelineConfig {
-    pub measures_ahead: u8,    // How many measures to show ahead
-    pub beats_per_chord: u8,   // Default chord duration
-    pub auto_advance: bool,    // Auto-advance timeline with metronome
-    pub show_key_changes: bool, // Highlight key center changes
+    /// How many measures to show ahead in the timeline
+    pub measures_ahead: u8,
+    /// Default chord duration in beats
+    pub beats_per_chord: u8,
+    /// Whether to auto-advance timeline with metronome
+    pub auto_advance: bool,
+    /// Whether to highlight key center changes in the display
+    pub show_key_changes: bool,
 }
 
 impl Default for TimelineConfig {

@@ -15,7 +15,7 @@
 //! - **Precision Musical Timing**: <1ms beat accuracy with discrete scheduling
 //! - **Pattern Management**: Comprehensive drum pattern library with 6+ genres
 //! - **Sample Management**: Efficient audio sample loading and caching
-//! - **Modular Architecture**: 13 focused modules for maintainable code
+//! - **Modular Architecture**: 22 focused modules for maintainable code
 //!
 //! ## Quick Start
 //!
@@ -84,6 +84,14 @@
 //! - Application settings and preferences
 //! - JSON-based configuration persistence
 //! - Audio device configuration
+//!
+//! ### Melody Assistant (`melody::`)
+//! - Intelligent chord progression generation using music theory and Markov chains
+//! - Real-time timeline display synchronized to metronome/patterns
+//! - Key selection interface with 12 chromatic note checkboxes
+//! - Music theory fundamentals including scales, chord functions, and voice leading
+//! - Configurable complexity levels and musical style presets
+//! - Beat-synchronized chord changes for practice sessions
 //!
 //! ## Performance Characteristics
 //!
@@ -458,6 +466,27 @@ impl SampleData {
         sample_low + fraction * (sample_high - sample_low)
     }
 
+    /// Gets a sample value at a specific time with frequency adjustment.
+    ///
+    /// Calculates the sample value at the given time, adjusting playback speed
+    /// based on the target frequency relative to the sample's base frequency.
+    /// Supports looping and uses linear interpolation for smooth playback.
+    ///
+    /// # Arguments
+    /// * `time_secs` - The time position in seconds
+    /// * `target_frequency` - The desired playback frequency in Hz
+    ///
+    /// # Returns
+    /// The interpolated sample value, or 0.0 if the sample buffer is empty
+    ///
+    /// # Examples
+    /// ```
+    /// use polyphonica::SampleData;
+    ///
+    /// let samples = vec![0.0, 0.5, 1.0, 0.5, 0.0];
+    /// let sample_data = SampleData::new(samples, 44100.0, 440.0, None, None);
+    /// let value = sample_data.get_sample_at_time(0.1, 440.0);
+    /// ```
     pub fn get_sample_at_time(&self, time_secs: f32, target_frequency: f32) -> f32 {
         if self.samples.is_empty() {
             return 0.0;
@@ -650,6 +679,36 @@ pub fn generate_wave(
     samples
 }
 
+/// Applies an ADSR envelope to a buffer of audio samples in-place.
+///
+/// Modifies the provided sample buffer by applying the four-stage ADSR
+/// (Attack, Decay, Sustain, Release) envelope. This is essential for
+/// natural-sounding audio synthesis and sample playback.
+///
+/// # Arguments
+/// * `samples` - Mutable slice of audio samples to be processed
+/// * `envelope` - ADSR envelope parameters defining the amplitude shape
+/// * `sample_rate` - Sample rate in Hz for timing calculations
+///
+/// # ADSR Stages
+/// - **Attack**: Linear ramp from 0 to peak amplitude
+/// - **Decay**: Linear ramp from peak to sustain level
+/// - **Sustain**: Constant amplitude at sustain level
+/// - **Release**: Linear ramp from sustain level to 0
+///
+/// # Examples
+/// ```
+/// use polyphonica::{apply_envelope, AdsrEnvelope};
+///
+/// let mut samples = vec![1.0; 1000]; // 1000 samples at full amplitude
+/// let envelope = AdsrEnvelope {
+///     attack_secs: 0.1,
+///     decay_secs: 0.1,
+///     sustain_level: 0.7,
+///     release_secs: 0.2,
+/// };
+/// apply_envelope(&mut samples, &envelope, 44100);
+/// ```
 pub fn apply_envelope(samples: &mut [f32], envelope: &AdsrEnvelope, sample_rate: u32) {
     let total_samples = samples.len();
     if total_samples == 0 {
@@ -699,6 +758,47 @@ pub fn apply_envelope(samples: &mut [f32], envelope: &AdsrEnvelope, sample_rate:
     }
 }
 
+/// Renders a single sound event into an audio buffer.
+///
+/// Generates a complete audio buffer for a `SoundEvent`, applying waveform
+/// generation, frequency modulation, and envelope shaping. Supports frequency
+/// sweeps and all available waveforms.
+///
+/// # Arguments
+/// * `event` - The sound event to render with all parameters
+/// * `sample_rate` - Sample rate in Hz for audio generation
+///
+/// # Returns
+/// Vector of audio samples representing the rendered event, or empty vector
+/// if input validation fails
+///
+/// # Features
+/// - Frequency sweeps from start to end frequency
+/// - All waveform types supported (sine, square, sawtooth, etc.)
+/// - Automatic envelope application
+/// - Input validation for safe audio generation
+///
+/// # Examples
+/// ```
+/// use polyphonica::{render_event, SoundEvent, Waveform, AdsrEnvelope};
+///
+/// let envelope = AdsrEnvelope {
+///     attack_secs: 0.01,
+///     decay_secs: 0.1,
+///     sustain_level: 0.8,
+///     release_secs: 0.2,
+/// };
+///
+/// let event = SoundEvent {
+///     waveform: Waveform::Sine,
+///     start_frequency: 440.0,
+///     end_frequency: 440.0,
+///     duration_secs: 1.0,
+///     envelope,
+/// };
+///
+/// let samples = render_event(&event, 44100);
+/// ```
 pub fn render_event(event: &SoundEvent, sample_rate: u32) -> Vec<f32> {
     if validate_inputs(event.start_frequency, event.duration_secs, sample_rate).is_err() {
         return Vec::new();
@@ -728,6 +828,57 @@ pub fn render_event(event: &SoundEvent, sample_rate: u32) -> Vec<f32> {
     samples
 }
 
+/// Renders a timeline of multiple sound events into a single audio buffer.
+///
+/// Combines multiple sound events positioned at specific times into a single
+/// audio timeline. Events can overlap and will be mixed together additively.
+/// This is the main function for creating complex musical sequences.
+///
+/// # Arguments
+/// * `events` - Slice of (start_time, event) tuples defining the timeline
+/// * `total_duration_secs` - Total duration of the output buffer in seconds
+/// * `sample_rate` - Sample rate in Hz for audio generation
+///
+/// # Returns
+/// Vector of mixed audio samples representing the complete timeline,
+/// or empty vector if input validation fails
+///
+/// # Features
+/// - Additive mixing of overlapping events
+/// - Precise timing based on sample-accurate positioning
+/// - Automatic clipping prevention (events beyond timeline are ignored)
+/// - Input validation for robust operation
+///
+/// # Examples
+/// ```
+/// use polyphonica::{render_timeline, SoundEvent, Waveform, AdsrEnvelope};
+///
+/// let envelope = AdsrEnvelope {
+///     attack_secs: 0.01,
+///     decay_secs: 0.1,
+///     sustain_level: 0.8,
+///     release_secs: 0.2,
+/// };
+///
+/// let events = vec![
+///     (0.0, SoundEvent {
+///         waveform: Waveform::Sine,
+///         start_frequency: 440.0,
+///         end_frequency: 440.0,
+///         duration_secs: 0.5,
+///         envelope,
+///     }),
+///     (0.5, SoundEvent {
+///         waveform: Waveform::Sine,
+///         start_frequency: 523.0,
+///         end_frequency: 523.0,
+///         duration_secs: 0.5,
+///         envelope,
+///     }),
+/// ];
+///
+/// let timeline = render_timeline(&events, 1.0, 44100);
+/// ```
 pub fn render_timeline(
     events: &[(f32, SoundEvent)],
     total_duration_secs: f32,
@@ -787,16 +938,38 @@ pub struct AtomicF32 {
 }
 
 impl AtomicF32 {
+    /// Creates a new `AtomicF32` with the given initial value.
+    ///
+    /// # Arguments
+    /// * `value` - Initial f32 value to store
+    ///
+    /// # Examples
+    /// ```
+    /// use polyphonica::AtomicF32;
+    /// let atomic = AtomicF32::new(3.14);
+    /// ```
     pub fn new(value: f32) -> Self {
         AtomicF32 {
             bits: AtomicU32::new(value.to_bits()),
         }
     }
 
+    /// Loads the current value atomically with the specified memory ordering.
+    ///
+    /// # Arguments
+    /// * `ordering` - Memory ordering for the atomic operation
+    ///
+    /// # Returns
+    /// Current f32 value
     pub fn load(&self, ordering: Ordering) -> f32 {
         f32::from_bits(self.bits.load(ordering))
     }
 
+    /// Stores a value atomically with the specified memory ordering.
+    ///
+    /// # Arguments
+    /// * `value` - New f32 value to store
+    /// * `ordering` - Memory ordering for the atomic operation
     pub fn store(&self, value: f32, ordering: Ordering) {
         self.bits.store(value.to_bits(), ordering);
     }
@@ -832,20 +1005,29 @@ pub struct Voice {
 /// Current state within ADSR envelope
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EnvelopePhase {
+    /// Attack phase: linearly ramping from 0 to peak amplitude
     Attack,
+    /// Decay phase: linearly ramping from peak to sustain level
     Decay,
+    /// Sustain phase: holding constant amplitude at sustain level
     Sustain,
+    /// Release phase: linearly ramping from sustain level to 0
     Release,
+    /// Envelope has completed all phases and reached zero amplitude
     Finished,
 }
 
 /// Running envelope state for real-time processing
 #[derive(Debug, Clone)]
 pub struct EnvelopeState {
+    /// Current phase of the ADSR envelope
     pub phase: EnvelopePhase,
+    /// Time elapsed within the current phase (in seconds)
     pub phase_time: f32,
+    /// Current amplitude level (0.0 to 1.0)
     pub current_level: f32,
-    pub release_level: f32, // Level when release was triggered
+    /// Amplitude level when release phase was triggered
+    pub release_level: f32,
 }
 
 impl Default for EnvelopeState {
@@ -855,6 +1037,10 @@ impl Default for EnvelopeState {
 }
 
 impl EnvelopeState {
+    /// Creates a new envelope state in the initial Attack phase.
+    ///
+    /// # Returns
+    /// EnvelopeState ready for ADSR processing
     pub fn new() -> Self {
         EnvelopeState {
             phase: EnvelopePhase::Attack,
@@ -930,6 +1116,10 @@ impl EnvelopeState {
         self.current_level.clamp(0.0, 1.0)
     }
 
+    /// Checks if the envelope has completed all phases.
+    ///
+    /// # Returns
+    /// `true` if the envelope is in the Finished phase
     pub fn is_finished(&self) -> bool {
         self.phase == EnvelopePhase::Finished
     }
@@ -945,6 +1135,13 @@ impl EnvelopeState {
 }
 
 impl Voice {
+    /// Creates a new voice with default parameters.
+    ///
+    /// # Arguments
+    /// * `voice_id` - Unique identifier for this voice
+    ///
+    /// # Returns
+    /// Voice initialized with sine wave at 440Hz
     pub fn new(voice_id: u32) -> Self {
         Voice {
             waveform: Waveform::Sine,
@@ -1044,6 +1241,10 @@ impl Voice {
         waveform_sample * envelope_amplitude * self.amplitude * self.volume
     }
 
+    /// Checks if this voice is currently active.
+    ///
+    /// # Returns
+    /// `true` if the voice is actively producing audio
     pub fn is_active(&self) -> bool {
         self.active.load(Ordering::Relaxed)
     }
@@ -1348,7 +1549,11 @@ impl RealtimeEngine {
     }
 }
 
-// Thread-safe wrapper for shared access
+/// Thread-safe wrapper for shared access to RealtimeEngine.
+///
+/// Provides mutex-protected access to a RealtimeEngine instance for
+/// multi-threaded audio applications. Use this when the engine needs
+/// to be shared between audio and UI threads.
 pub type SharedRealtimeEngine = Arc<std::sync::Mutex<RealtimeEngine>>;
 
 impl Default for RealtimeEngine {
@@ -1357,21 +1562,23 @@ impl Default for RealtimeEngine {
     }
 }
 
-// Timing subsystem for precise musical timing
+/// Pattern management subsystem for drum patterns and musical sequences.
 pub mod patterns;
+/// Audio sample management subsystem for efficient WAV file handling.
 pub mod samples;
+/// Timing subsystem for precise musical timing and metronome functionality.
 pub mod timing;
 
-// Audio processing subsystem for synthesis and streaming
+/// Audio processing subsystem for synthesis, streaming, and effects.
 pub mod audio;
 
-// Beat visualization subsystem for musical displays
+/// Beat visualization subsystem for real-time musical displays.
 pub mod visualization;
 
-// Configuration management subsystem for application settings
+/// Configuration management subsystem for application settings and preferences.
 pub mod config;
 
-// Melody assistant subsystem for chord progression generation
+/// Melody assistant subsystem for intelligent chord progression generation.
 pub mod melody;
 
 #[cfg(test)]

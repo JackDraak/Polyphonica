@@ -1,4 +1,6 @@
+/// Sample metadata and configuration catalog management.
 pub mod catalog;
+/// DrumKit collections with velocity curves and acoustic presets.
 pub mod drumkit;
 /// Sample management subsystem for Polyphonica
 ///
@@ -36,7 +38,9 @@ pub mod drumkit;
 /// # Ok(())
 /// # }
 /// ```
+/// Efficient WAV file loading and LRU caching system.
 pub mod library;
+/// Real-time sample playback with zero-allocation guarantee.
 pub mod manager;
 
 // Re-export core types for convenient access

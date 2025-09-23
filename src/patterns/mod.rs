@@ -1,7 +1,12 @@
+/// Pattern builder for creating drum patterns with fluent API and notation support.
 pub mod builder;
+/// Pre-defined pattern collections organized by musical genre.
 pub mod collections;
+/// JSON import/export functionality for pattern catalogs.
 pub mod io;
+/// Pattern library management and factory system.
 pub mod library;
+/// Real-time pattern state management for playback.
 pub mod state;
 /// Pattern library module for rhythm and drum patterns
 ///
