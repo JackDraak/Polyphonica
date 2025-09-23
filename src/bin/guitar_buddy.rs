@@ -1,5 +1,5 @@
 use polyphonica::audio::accents::get_accent_sound;
-use polyphonica::audio::synthesis::{get_sound_params, AudioSampleAdapter};
+use polyphonica::audio::synthesis::{get_sound_params, AudioSampleAdapter, AudioSynthesis, get_note_audio_params, get_chord_audio_params};
 use polyphonica::melody::{MelodyAssistantState, Note, KeySelection, GenerationParameters, TimelineConfig};
 use polyphonica::patterns::{DrumPattern, MasterCollection, PatternLibrary, PatternState};
 use polyphonica::patterns::types::PatternGenre;
@@ -66,6 +66,8 @@ struct MetronomeState {
     melody_assistant: MelodyAssistantState,
     show_chord_progressions: bool,
     skill_level: f32, // 0.0 = beginner, 1.0 = expert
+    melody_volume: f32, // Volume for melody assistant audio (0.0 to 1.0)
+    auto_accompaniment: bool, // Whether to play automatic chord accompaniment
 }
 
 impl MetronomeState {
@@ -95,6 +97,8 @@ impl MetronomeState {
             melody_assistant: MelodyAssistantState::new_for_key(Note::C, true),
             show_chord_progressions: false,
             skill_level: 0.3, // Default to medium skill level
+            melody_volume: 0.4, // Default melody volume
+            auto_accompaniment: false, // Disabled by default
         };
         // Sync initial settings to new metronome
         instance.sync_to_new_metronome();
@@ -700,23 +704,47 @@ mod gui_components {
                                         ui.colored_label(Color32::WHITE, format!("NOW: {}", current_chord.chord.symbol()));
                                         ui.horizontal(|ui| {
                                             if ui.small_button("♪ Root").clicked() {
-                                                // Play root note in mid-range
-                                                println!("Playing root note: {} Hz", current_chord.chord.root_frequency());
+                                                // Play root note audio
+                                                let (waveform, frequency, envelope) = get_note_audio_params(&current_chord.chord.root);
+                                                drop(metronome); // Release lock before audio call
+                                                let mut engine = app_state.engine.lock().unwrap();
+                                                let volume = app_state.metronome.lock().unwrap().melody_volume;
+                                                engine.trigger_note_with_volume(waveform, frequency, envelope, volume);
+                                                metronome = app_state.metronome.lock().unwrap(); // Reacquire lock
                                             }
                                             if ui.small_button("♫ Chord").clicked() {
-                                                // Play full chord with multi-octave voicing
-                                                let frequencies = current_chord.chord.chord_frequencies();
-                                                println!("Playing chord (bass+mid+treble): {:?}", frequencies);
+                                                // Play chord audio (root note for now)
+                                                let (waveform, frequency, envelope) = get_chord_audio_params(&current_chord.chord);
+                                                drop(metronome);
+                                                let mut engine = app_state.engine.lock().unwrap();
+                                                let volume = app_state.metronome.lock().unwrap().melody_volume;
+                                                engine.trigger_note_with_volume(waveform, frequency, envelope, volume);
+                                                metronome = app_state.metronome.lock().unwrap();
                                             }
                                             if ui.small_button("🎵 Melody").clicked() {
-                                                // Play melody notes in treble range
-                                                let melody_freqs = current_chord.chord.melody_frequencies();
-                                                println!("Playing melody notes: {:?}", melody_freqs);
+                                                // Play melody note (third of chord)
+                                                let chord_tones = current_chord.chord.chord_tones();
+                                                if chord_tones.len() > 1 {
+                                                    let (waveform, frequency, envelope) = get_note_audio_params(&chord_tones[1]);
+                                                    drop(metronome);
+                                                    let mut engine = app_state.engine.lock().unwrap();
+                                                    let volume = app_state.metronome.lock().unwrap().melody_volume;
+                                                    engine.trigger_note_with_volume(waveform, frequency, envelope, volume);
+                                                    metronome = app_state.metronome.lock().unwrap();
+                                                }
                                             }
                                             if ui.small_button("🔄 Arp").clicked() {
-                                                // Play arpeggio across 2 octaves
-                                                let arp_freqs = current_chord.chord.arpeggio_frequencies(2);
-                                                println!("Playing arpeggio: {:?}", arp_freqs);
+                                                // Play arpeggio (sequence of notes)
+                                                let chord_tones = current_chord.chord.chord_tones();
+                                                for (i, &note) in chord_tones.iter().enumerate() {
+                                                    let (waveform, frequency, envelope) = get_note_audio_params(&note);
+                                                    drop(metronome);
+                                                    let mut engine = app_state.engine.lock().unwrap();
+                                                    let volume = app_state.metronome.lock().unwrap().melody_volume;
+                                                    engine.trigger_note_with_volume(waveform, frequency, envelope, volume * 0.8);
+                                                    metronome = app_state.metronome.lock().unwrap();
+                                                    // Note: In a real implementation, we'd want to stagger these notes over time
+                                                }
                                             }
                                         });
                                     });
@@ -873,6 +901,15 @@ mod gui_components {
                         ui.label(level_text);
                     });
 
+                    // Melody assistant controls
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        ui.label("Melody Volume:");
+                        ui.add(egui::Slider::new(&mut metronome.melody_volume, 0.0..=1.0)
+                            .text("Volume"));
+                        ui.checkbox(&mut metronome.auto_accompaniment, "Auto-play chords");
+                    });
+
                     // Audio range information
                     ui.separator();
                     ui.label("Audio Playback Info:");
@@ -949,6 +986,21 @@ impl GuitarBuddy {
         // Update melody assistant with beat event if chord progressions are enabled
         if metronome.show_chord_progressions {
             metronome.melody_assistant.update_with_beat(&beat_event);
+
+            // Auto-play chord accompaniment on strong beats if enabled (beat 1 of measure)
+            if metronome.auto_accompaniment && (beat_event.beat_number % metronome.time_signature.numerator as u64 == 1) {
+                let timeline_data = metronome.melody_assistant.get_timeline_display();
+                if let Some(ref current_chord) = timeline_data.current_chord {
+                    let (chord_waveform, chord_frequency, chord_envelope) = get_chord_audio_params(&current_chord.chord);
+                    let melody_volume = metronome.melody_volume * 0.6; // Softer for accompaniment
+
+                    drop(metronome); // Release lock for audio call
+                    let mut engine = self.app_state.engine.lock().unwrap();
+                    engine.trigger_note_with_volume(chord_waveform, chord_frequency, chord_envelope, melody_volume);
+                    drop(engine); // Release engine lock
+                    metronome = self.app_state.metronome.lock().unwrap(); // Reacquire metronome lock
+                }
+            }
         }
 
         drop(metronome);
@@ -995,6 +1047,21 @@ impl GuitarBuddy {
             // Update melody assistant with beat event if chord progressions are enabled
             if metronome.show_chord_progressions {
                 metronome.melody_assistant.update_with_beat(&beat_event);
+
+                // Auto-play chord accompaniment on strong beats if enabled (beat 1 of measure)
+                if metronome.auto_accompaniment && (beat_event.beat_number % metronome.time_signature.numerator as u64 == 1) {
+                    let timeline_data = metronome.melody_assistant.get_timeline_display();
+                    if let Some(ref current_chord) = timeline_data.current_chord {
+                        let (chord_waveform, chord_frequency, chord_envelope) = get_chord_audio_params(&current_chord.chord);
+                        let melody_volume = metronome.melody_volume * 0.6; // Softer for accompaniment
+
+                        drop(metronome); // Release lock for audio call
+                        let mut engine = self.app_state.engine.lock().unwrap();
+                        engine.trigger_note_with_volume(chord_waveform, chord_frequency, chord_envelope, melody_volume);
+                        drop(engine); // Release engine lock
+                        metronome = self.app_state.metronome.lock().unwrap(); // Reacquire metronome lock
+                    }
+                }
             }
         }
 

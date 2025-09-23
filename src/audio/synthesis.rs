@@ -1,10 +1,12 @@
 use crate::timing::ClickType;
-/// Audio synthesis and parameter generation for click types
+/// Audio synthesis and parameter generation for click types and musical elements
 ///
 /// This module provides the core audio synthesis capabilities extracted from
 /// the monolithic guitar_buddy.rs implementation. It handles waveform generation,
-/// envelope configuration, and audio parameter mapping for different click types.
+/// envelope configuration, and audio parameter mapping for different click types
+/// and musical notes/chords for the melody assistant.
 use crate::{AdsrEnvelope, SampleData, Waveform};
+use crate::melody::{Note, Chord};
 use std::collections::HashMap;
 
 /// Audio synthesis capabilities for click types
@@ -437,4 +439,80 @@ pub fn get_sound_params(
     sample_adapter: &AudioSampleAdapter,
 ) -> (Waveform, f32, AdsrEnvelope) {
     click_type.get_audio_params(sample_adapter)
+}
+
+/// Musical note synthesis for melody assistant accompaniment
+impl AudioSynthesis for Note {
+    fn get_audio_params(
+        &self,
+        _sample_adapter: &AudioSampleAdapter,
+    ) -> (Waveform, f32, AdsrEnvelope) {
+        // Use synthetic sine wave for clean note synthesis
+        let frequency = self.middle_frequency(); // Default to octave 4
+        let envelope = AdsrEnvelope {
+            attack_secs: 0.01,   // Quick attack for responsiveness
+            decay_secs: 0.1,     // Short decay for clarity
+            sustain_level: 0.7,  // Moderate sustain for continuity
+            release_secs: 0.5,   // Gradual release for musical quality
+        };
+        (Waveform::Sine, frequency, envelope)
+    }
+
+    fn get_sample_envelope(&self) -> AdsrEnvelope {
+        // Optimized for musical note playback
+        AdsrEnvelope {
+            attack_secs: 0.005,
+            decay_secs: 0.05,
+            sustain_level: 0.8,
+            release_secs: 0.3,
+        }
+    }
+
+    fn get_synthetic_params(&self) -> (Waveform, f32, AdsrEnvelope) {
+        (Waveform::Sine, self.middle_frequency(), self.get_sample_envelope())
+    }
+}
+
+/// Chord synthesis for melody assistant accompaniment
+impl AudioSynthesis for Chord {
+    fn get_audio_params(
+        &self,
+        _sample_adapter: &AudioSampleAdapter,
+    ) -> (Waveform, f32, AdsrEnvelope) {
+        // Use root note frequency for primary synthesis
+        // Multi-note synthesis would require audio engine modifications
+        let frequency = self.root_frequency();
+        let envelope = AdsrEnvelope {
+            attack_secs: 0.02,  // Slightly slower attack for chords
+            decay_secs: 0.15,   // Longer decay for richness
+            sustain_level: 0.6, // Lower sustain to avoid muddiness
+            release_secs: 0.8,  // Long release for chord resonance
+        };
+        (Waveform::Sine, frequency, envelope)
+    }
+
+    fn get_sample_envelope(&self) -> AdsrEnvelope {
+        // Optimized for chord playback
+        AdsrEnvelope {
+            attack_secs: 0.015,
+            decay_secs: 0.1,
+            sustain_level: 0.7,
+            release_secs: 0.6,
+        }
+    }
+
+    fn get_synthetic_params(&self) -> (Waveform, f32, AdsrEnvelope) {
+        (Waveform::Sine, self.root_frequency(), self.get_sample_envelope())
+    }
+}
+
+/// Convenience functions for melody assistant audio integration
+pub fn get_note_audio_params(note: &Note) -> (Waveform, f32, AdsrEnvelope) {
+    let adapter = AudioSampleAdapter::new();
+    note.get_audio_params(&adapter)
+}
+
+pub fn get_chord_audio_params(chord: &Chord) -> (Waveform, f32, AdsrEnvelope) {
+    let adapter = AudioSampleAdapter::new();
+    chord.get_audio_params(&adapter)
 }
