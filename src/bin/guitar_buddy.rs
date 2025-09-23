@@ -1,6 +1,6 @@
 use polyphonica::audio::accents::get_accent_sound;
 use polyphonica::audio::synthesis::{get_sound_params, AudioSampleAdapter};
-use polyphonica::melody::{MelodyAssistantState, Note};
+use polyphonica::melody::{MelodyAssistantState, Note, KeySelection, GenerationParameters, TimelineConfig};
 use polyphonica::patterns::{DrumPattern, MasterCollection, PatternLibrary, PatternState};
 use polyphonica::patterns::types::PatternGenre;
 use polyphonica::timing::{
@@ -65,6 +65,7 @@ struct MetronomeState {
     audio_samples: AudioSampleAdapter,
     melody_assistant: MelodyAssistantState,
     show_chord_progressions: bool,
+    skill_level: f32, // 0.0 = beginner, 1.0 = expert
 }
 
 impl MetronomeState {
@@ -93,6 +94,7 @@ impl MetronomeState {
             },
             melody_assistant: MelodyAssistantState::new_for_key(Note::C, true),
             show_chord_progressions: false,
+            skill_level: 0.3, // Default to medium skill level
         };
         // Sync initial settings to new metronome
         instance.sync_to_new_metronome();
@@ -680,29 +682,96 @@ mod gui_components {
                     ui.label("Timeline:");
 
                     ui.horizontal(|ui| {
-                        // Current chord
+                        // Current chord - highlight with background color and audio controls
                         if let Some(ref current_chord) = timeline_data.current_chord {
-                            ui.colored_label(Color32::GREEN, format!("Now: {}", current_chord.chord.symbol()));
+                            ui.allocate_ui_with_layout(
+                                egui::Vec2::new(150.0, 40.0),
+                                egui::Layout::left_to_right(egui::Align::Center),
+                                |ui| {
+                                    // Background highlight for active chord
+                                    let rect = ui.available_rect_before_wrap();
+                                    ui.painter().rect_filled(
+                                        rect,
+                                        egui::Rounding::same(5.0),
+                                        Color32::from_rgb(40, 80, 40), // Dark green background
+                                    );
+
+                                    ui.vertical(|ui| {
+                                        ui.colored_label(Color32::WHITE, format!("NOW: {}", current_chord.chord.symbol()));
+                                        ui.horizontal(|ui| {
+                                            if ui.small_button("♪ Root").clicked() {
+                                                // Play root note in mid-range
+                                                println!("Playing root note: {} Hz", current_chord.chord.root_frequency());
+                                            }
+                                            if ui.small_button("♫ Chord").clicked() {
+                                                // Play full chord with multi-octave voicing
+                                                let frequencies = current_chord.chord.chord_frequencies();
+                                                println!("Playing chord (bass+mid+treble): {:?}", frequencies);
+                                            }
+                                            if ui.small_button("🎵 Melody").clicked() {
+                                                // Play melody notes in treble range
+                                                let melody_freqs = current_chord.chord.melody_frequencies();
+                                                println!("Playing melody notes: {:?}", melody_freqs);
+                                            }
+                                            if ui.small_button("🔄 Arp").clicked() {
+                                                // Play arpeggio across 2 octaves
+                                                let arp_freqs = current_chord.chord.arpeggio_frequencies(2);
+                                                println!("Playing arpeggio: {:?}", arp_freqs);
+                                            }
+                                        });
+                                    });
+                                },
+                            );
                         } else {
-                            ui.colored_label(Color32::GRAY, "Now: -");
+                            ui.colored_label(Color32::GRAY, "NOW: -");
                         }
 
                         ui.separator();
 
                         // Next chord
                         if let Some(ref next_chord) = timeline_data.next_chord {
-                            ui.colored_label(Color32::YELLOW, format!("Next: {}", next_chord.chord.symbol()));
+                            ui.vertical(|ui| {
+                                ui.colored_label(Color32::YELLOW, format!("NEXT: {}", next_chord.chord.symbol()));
+                                ui.horizontal(|ui| {
+                                    if ui.small_button("♪").clicked() {
+                                        println!("Playing next root: {} Hz", next_chord.chord.root_frequency());
+                                    }
+                                    if ui.small_button("♫").clicked() {
+                                        let frequencies = next_chord.chord.chord_frequencies();
+                                        println!("Playing next chord (multi-octave): {:?}", frequencies);
+                                    }
+                                    if ui.small_button("🎵").clicked() {
+                                        let melody_freqs = next_chord.chord.melody_frequencies();
+                                        println!("Playing next melody: {:?}", melody_freqs);
+                                    }
+                                });
+                            });
                         } else {
-                            ui.colored_label(Color32::GRAY, "Next: -");
+                            ui.colored_label(Color32::GRAY, "NEXT: -");
                         }
 
                         ui.separator();
 
                         // Following chord
                         if let Some(ref following_chord) = timeline_data.following_chord {
-                            ui.label(format!("Following: {}", following_chord.chord.symbol()));
+                            ui.vertical(|ui| {
+                                ui.label(format!("FOLLOWING: {}", following_chord.chord.symbol()));
+                                ui.horizontal(|ui| {
+                                    if ui.small_button("♪").clicked() {
+                                        println!("Playing following root: {} Hz", following_chord.chord.root_frequency());
+                                    }
+                                    if ui.small_button("♫").clicked() {
+                                        let frequencies = following_chord.chord.chord_frequencies();
+                                        println!("Playing following chord (multi-octave): {:?}", frequencies);
+                                    }
+                                    if ui.small_button("🎵").clicked() {
+                                        let melody_freqs = following_chord.chord.melody_frequencies();
+                                        println!("Playing following melody: {:?}", melody_freqs);
+                                    }
+                                });
+                            });
                         } else {
-                            ui.label("Following: -");
+                            ui.label("FOLLOWING: -");
                         }
                     });
 
@@ -715,14 +784,108 @@ mod gui_components {
                         }
                     });
 
-                    // Simple note selection for now
+                    // Chromatic note selection checkboxes
                     ui.separator();
-                    ui.label("Enabled notes:");
+                    ui.label("Note Selection:");
 
-                    let key_selection = metronome.melody_assistant.get_key_selection();
-                    let enabled_notes = key_selection.enabled_note_list();
-                    let note_names: Vec<String> = enabled_notes.iter().map(|n| n.name().to_string()).collect();
-                    ui.label(format!("{}", note_names.join(", ")));
+                    let mut key_selection = metronome.melody_assistant.get_key_selection().clone();
+                    let all_notes = Note::all();
+                    let mut selection_changed = false;
+
+                    // Display checkboxes in two rows (6 notes each)
+                    ui.horizontal(|ui| {
+                        for &note in &all_notes[0..6] {
+                            let mut enabled = key_selection.is_note_enabled(note);
+                            if ui.checkbox(&mut enabled, note.name()).changed() {
+                                key_selection.set_note_enabled(note, enabled);
+                                selection_changed = true;
+                            }
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        for &note in &all_notes[6..12] {
+                            let mut enabled = key_selection.is_note_enabled(note);
+                            if ui.checkbox(&mut enabled, note.name()).changed() {
+                                key_selection.set_note_enabled(note, enabled);
+                                selection_changed = true;
+                            }
+                        }
+                    });
+
+                    // Update melody assistant if selection changed
+                    if selection_changed {
+                        metronome.melody_assistant.update_key_selection(key_selection);
+                    }
+
+                    // Quick preset buttons
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        ui.label("Presets:");
+                        if ui.button("C Major").clicked() {
+                            let c_major = KeySelection::for_major_key(Note::C);
+                            metronome.melody_assistant.update_key_selection(c_major);
+                        }
+                        if ui.button("A Minor").clicked() {
+                            let a_minor = KeySelection::for_minor_key(Note::A);
+                            metronome.melody_assistant.update_key_selection(a_minor);
+                        }
+                        if ui.button("All Notes").clicked() {
+                            let all_notes = KeySelection::all_notes();
+                            metronome.melody_assistant.update_key_selection(all_notes);
+                        }
+                    });
+
+                    // Skill level slider for note density control
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        ui.label("Skill Level:");
+                        if ui.add(egui::Slider::new(&mut metronome.skill_level, 0.0..=1.0)
+                            .text("Note Density")
+                            .show_value(false)).changed() {
+                            // Apply skill level changes to melody generation parameters
+
+                            // Update generation parameters based on skill level
+                            let generation_params = GenerationParameters {
+                                theory_adherence: 0.9 - (metronome.skill_level * 0.2), // Less strict at higher levels
+                                repetition_avoidance: 0.7,
+                                voice_leading_weight: 0.6,
+                                cadence_strength: 0.8 - (metronome.skill_level * 0.3), // More adventurous at higher levels
+                                modulation_tendency: metronome.skill_level * 0.3, // More modulation at higher levels
+                                complexity_level: metronome.skill_level, // More complex chords at higher levels
+                                rhythm_density: metronome.skill_level,
+                            };
+                            metronome.melody_assistant.update_generation_params(generation_params);
+
+                            // Update timeline config for chord change frequency
+                            let timeline_config = TimelineConfig::default().for_skill_level(metronome.skill_level);
+                            metronome.melody_assistant.update_timeline_config(timeline_config);
+
+                            println!("Skill level changed to: {:.2} - chord frequency updated", metronome.skill_level);
+                        }
+
+                        let level_text = match metronome.skill_level {
+                            x if x < 0.2 => "Beginner (1/4 notes over 4 bars)",
+                            x if x < 0.4 => "Easy (1/8 notes, simple patterns)",
+                            x if x < 0.6 => "Medium (1/8 + 1/16 notes)",
+                            x if x < 0.8 => "Advanced (1/16 notes, dense)",
+                            _ => "Expert (complex rhythms, syncopation)"
+                        };
+                        ui.label(level_text);
+                    });
+
+                    // Audio range information
+                    ui.separator();
+                    ui.label("Audio Playback Info:");
+                    ui.horizontal(|ui| {
+                        ui.label("♪ Root: Mid-range (175-350 Hz)");
+                        ui.separator();
+                        ui.label("♫ Chord: Bass+Mid+Treble (87-1400+ Hz)");
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("🎵 Melody: Treble range (350-1400+ Hz)");
+                        ui.separator();
+                        ui.label("🔄 Arp: 2-octave span");
+                    });
                 }
             });
         }

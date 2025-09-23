@@ -101,6 +101,7 @@ pub struct GenerationParameters {
     pub cadence_strength: f32,     // 0.0-1.0, strength of authentic cadences (default: 0.8)
     pub modulation_tendency: f32,  // 0.0-1.0, likelihood of key changes (default: 0.1)
     pub complexity_level: f32,     // 0.0-1.0, use complex chords (7ths, extensions) (default: 0.3)
+    pub rhythm_density: f32,       // 0.0-1.0, note density (0.0=1/4 notes, 1.0=1/16+ notes) (default: 0.3)
 }
 
 impl Default for GenerationParameters {
@@ -112,6 +113,7 @@ impl Default for GenerationParameters {
             cadence_strength: 0.8,      // Strong tendency toward cadences
             modulation_tendency: 0.1,   // Low chance of modulation
             complexity_level: 0.3,      // Some 7th chords, mostly triads
+            rhythm_density: 0.3,        // Medium rhythm density by default
         }
     }
 }

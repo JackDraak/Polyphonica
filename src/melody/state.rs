@@ -203,6 +203,7 @@ impl MelodyAssistantState {
             cadence_strength: 0.8,
             modulation_tendency: 0.1,
             complexity_level: 0.3,
+            rhythm_density: 0.3, // Default medium rhythm density
         };
         self.generator.update_parameters(generation_params);
 

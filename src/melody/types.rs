@@ -106,6 +106,51 @@ impl Note {
         let new_semitone = (current + semitones).rem_euclid(12) as u8;
         Note::from_semitone(new_semitone)
     }
+
+    /// Get frequency in Hz for note in specific octave (default octave 4, A4 = 440Hz)
+    pub fn frequency(&self, octave: u8) -> f32 {
+        let a4_freq = 440.0;
+        let a4_semitone = 9; // A is at position 9 in chromatic scale
+        let octave_offset = (octave as i32 - 4) * 12; // A4 is in octave 4
+        let semitone_offset = self.as_semitone() as i32 - a4_semitone;
+        let total_offset = octave_offset + semitone_offset;
+
+        a4_freq * 2.0_f32.powf(total_offset as f32 / 12.0)
+    }
+
+    /// Get frequency in Hz for note in middle octaves (C4-B4)
+    pub fn middle_frequency(&self) -> f32 {
+        self.frequency(4)
+    }
+
+    /// Get bass frequency (octave 2)
+    pub fn bass_frequency(&self) -> f32 {
+        self.frequency(2)
+    }
+
+    /// Get treble frequency (octave 5)
+    pub fn treble_frequency(&self) -> f32 {
+        self.frequency(5)
+    }
+
+    /// Get frequency range across multiple octaves for melodic practice
+    pub fn frequency_range(&self, start_octave: u8, octave_count: u8) -> Vec<f32> {
+        (start_octave..(start_octave + octave_count))
+            .map(|octave| self.frequency(octave))
+            .collect()
+    }
+
+    /// Get MIDI note number (C4 = 60, A4 = 69)
+    pub fn to_midi_note(&self, octave: u8) -> u8 {
+        (octave as u16 * 12 + self.as_semitone() as u16 + 12) as u8
+    }
+
+    /// Create note from MIDI note number
+    pub fn from_midi_note(midi_note: u8) -> (Note, u8) {
+        let octave = (midi_note / 12).saturating_sub(1);
+        let semitone = midi_note % 12;
+        (Note::from_semitone(semitone), octave)
+    }
 }
 
 impl fmt::Display for Note {
@@ -264,6 +309,67 @@ impl Chord {
     /// Get root position version of this chord
     pub fn root_position(&self) -> Chord {
         Chord::new(self.root, self.quality)
+    }
+
+    /// Get chord frequencies for audio playback with proper voicing across octaves
+    pub fn chord_frequencies(&self) -> Vec<f32> {
+        let chord_tones = self.chord_tones();
+        let mut frequencies = Vec::new();
+
+        // Start with bass note in octave 2 (low bass range)
+        frequencies.push(self.bass_note().frequency(2));
+
+        // Add chord tones spread across octaves for natural voicing
+        for (i, &note) in chord_tones.iter().enumerate() {
+            let octave = match i {
+                0 => 3, // Root in low-mid range
+                1 => 4, // Third in mid range
+                2 => 4, // Fifth in mid range
+                3 => 5, // Seventh in higher range
+                _ => 4 + (i % 2), // Additional extensions alternate high/mid
+            } as u8;
+            frequencies.push(note.frequency(octave));
+        }
+
+        frequencies
+    }
+
+    /// Get bass note frequency for audio playback (low octave)
+    pub fn bass_frequency(&self) -> f32 {
+        self.bass_note().frequency(2) // Bass note in low octave (87-175 Hz range)
+    }
+
+    /// Get root note frequency for audio playback (mid octave)
+    pub fn root_frequency(&self) -> f32 {
+        self.root.frequency(3) // Root in low-mid octave (175-350 Hz range)
+    }
+
+    /// Get melody frequencies for practice (higher octaves for lead lines)
+    pub fn melody_frequencies(&self) -> Vec<f32> {
+        // Melody notes should be in the treble range (octaves 4-6)
+        self.chord_tones()
+            .iter()
+            .enumerate()
+            .map(|(i, &note)| {
+                let octave = (4 + (i % 3)) as u8; // Spread across octaves 4, 5, 6
+                note.frequency(octave)
+            })
+            .collect()
+    }
+
+    /// Get arpeggio pattern frequencies across multiple octaves
+    pub fn arpeggio_frequencies(&self, octave_span: u8) -> Vec<f32> {
+        let chord_tones = self.chord_tones();
+        let mut frequencies = Vec::new();
+
+        // Create ascending arpeggio across specified octave span
+        for octave in 3..(3 + octave_span) {
+            for &note in &chord_tones {
+                frequencies.push(note.frequency(octave as u8));
+            }
+        }
+
+        frequencies
     }
 }
 
@@ -450,6 +556,30 @@ impl Default for TimelineConfig {
     }
 }
 
+impl TimelineConfig {
+    /// Calculate beats per chord based on skill level
+    /// - Beginner (0.0-0.2): 16 beats (4 measures in 4/4)
+    /// - Easy (0.2-0.4): 8 beats (2 measures)
+    /// - Medium (0.4-0.6): 4 beats (1 measure)
+    /// - Advanced (0.6-0.8): 2 beats (half measure)
+    /// - Expert (0.8-1.0): 1 beat (quarter note changes)
+    pub fn beats_per_chord_for_skill_level(skill_level: f32) -> u8 {
+        match skill_level {
+            x if x < 0.2 => 16,  // Beginner: very slow changes
+            x if x < 0.4 => 8,   // Easy: moderate pace
+            x if x < 0.6 => 4,   // Medium: standard pace
+            x if x < 0.8 => 2,   // Advanced: faster changes
+            _ => 1,              // Expert: very fast changes
+        }
+    }
+
+    /// Update timeline config for skill level
+    pub fn for_skill_level(mut self, skill_level: f32) -> Self {
+        self.beats_per_chord = Self::beats_per_chord_for_skill_level(skill_level);
+        self
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -520,5 +650,57 @@ mod tests {
         assert!(event.is_active_at_beat(3));
         assert!(!event.is_active_at_beat(4));
         assert_eq!(event.end_beat(), 4);
+    }
+
+    #[test]
+    fn test_multi_octave_frequencies() {
+        let c_major = Chord::new(Note::C, ChordQuality::Major);
+
+        // Test chord frequencies span multiple octaves
+        let chord_freqs = c_major.chord_frequencies();
+        assert!(chord_freqs.len() >= 4); // Bass + chord tones
+
+        // First frequency should be bass note (C2)
+        assert!((chord_freqs[0] - Note::C.frequency(2)).abs() < 0.01);
+
+        // Test melody frequencies are in higher range
+        let melody_freqs = c_major.melody_frequencies();
+        assert_eq!(melody_freqs.len(), 3); // C, E, G
+        assert!(melody_freqs[0] >= 261.0); // C4 or higher
+
+        // Test arpeggio frequencies
+        let arp_freqs = c_major.arpeggio_frequencies(2);
+        assert_eq!(arp_freqs.len(), 6); // 3 notes × 2 octaves
+        assert!(arp_freqs[0] < arp_freqs[3]); // Second octave higher than first
+    }
+
+    #[test]
+    fn test_note_frequency_ranges() {
+        let c_note = Note::C;
+
+        // Test different octave frequencies
+        assert!((c_note.bass_frequency() - 65.41).abs() < 0.1); // C2
+        assert!((c_note.middle_frequency() - 261.63).abs() < 0.1); // C4
+        assert!((c_note.treble_frequency() - 523.25).abs() < 0.1); // C5
+
+        // Test frequency range
+        let freq_range = c_note.frequency_range(2, 3); // C2, C3, C4
+        assert_eq!(freq_range.len(), 3);
+        assert!(freq_range[0] < freq_range[1]);
+        assert!(freq_range[1] < freq_range[2]);
+    }
+
+    #[test]
+    fn test_timeline_config_skill_levels() {
+        // Test skill level to beats per chord mapping
+        assert_eq!(TimelineConfig::beats_per_chord_for_skill_level(0.1), 16); // Beginner
+        assert_eq!(TimelineConfig::beats_per_chord_for_skill_level(0.3), 8);  // Easy
+        assert_eq!(TimelineConfig::beats_per_chord_for_skill_level(0.5), 4);  // Medium
+        assert_eq!(TimelineConfig::beats_per_chord_for_skill_level(0.7), 2);  // Advanced
+        assert_eq!(TimelineConfig::beats_per_chord_for_skill_level(0.9), 1);  // Expert
+
+        // Test timeline config builder
+        let config = TimelineConfig::default().for_skill_level(0.8);
+        assert_eq!(config.beats_per_chord, 1); // Expert level (0.8 >= 0.8)
     }
 }
