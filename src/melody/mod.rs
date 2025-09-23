@@ -29,11 +29,11 @@
 //! let mut assistant = MelodyAssistantState::new_for_key(Note::C, true);
 //!
 //! // Enable only C major scale notes
-//! let mut key_selection = KeySelection::for_key(Note::C, true);
+//! let key_selection = KeySelection::for_key(Note::C, true);
 //! assistant.update_key_selection(key_selection);
 //!
-//! // Generate upcoming chord progression
-//! assistant.generate_ahead(16); // 16 beats ahead
+//! // Start chord progression generation
+//! assistant.start();
 //!
 //! // Get current timeline for UI display
 //! let timeline = assistant.get_timeline_display();
