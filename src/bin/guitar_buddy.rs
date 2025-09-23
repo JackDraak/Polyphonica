@@ -654,14 +654,20 @@ mod gui_components {
         // Helper function to play audio without lock conflicts
         fn play_note_audio(app_state: &AppState, note: &Note) {
             let (waveform, frequency, envelope) = get_note_audio_params(note);
-            let volume = app_state.metronome.lock().unwrap().melody_volume;
+            let volume = {
+                let metronome = app_state.metronome.lock().unwrap();
+                metronome.melody_volume
+            }; // Release metronome lock before acquiring engine lock
             let mut engine = app_state.engine.lock().unwrap();
             engine.trigger_note_with_volume(waveform, frequency, envelope, volume);
         }
 
         fn play_chord_audio(app_state: &AppState, chord: &polyphonica::melody::Chord) {
             let (waveform, frequency, envelope) = get_chord_audio_params(chord);
-            let volume = app_state.metronome.lock().unwrap().melody_volume;
+            let volume = {
+                let metronome = app_state.metronome.lock().unwrap();
+                metronome.melody_volume
+            }; // Release metronome lock before acquiring engine lock
             let mut engine = app_state.engine.lock().unwrap();
             engine.trigger_note_with_volume(waveform, frequency, envelope, volume);
         }
